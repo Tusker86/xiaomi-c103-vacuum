@@ -9,6 +9,7 @@ import json
 import os
 import sys
 import time
+from pathlib import Path
 
 from . import account, config
 
@@ -23,7 +24,8 @@ def main(argv: list[str]) -> int:
         return 2
     cmd = argv[0]
     opts = config.load_options()
-    state = os.environ.get("C103_STATE", os.environ.get("C103_DATA", "data") + "/..")
+    data = Path(os.environ.get("C103_DATA", "data"))
+    state = os.environ.get("C103_STATE", data.parent)     # the same folders as the server
     robots, _ = config.robots(opts, account.Account(state, opts).devices())
     ids = [argv[1]] if len(argv) > 1 and argv[1] in robots else list(robots)
     for rid in ids:

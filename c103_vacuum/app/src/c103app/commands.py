@@ -1,7 +1,7 @@
 """Validated robot commands, shared by the web page and the MQTT bridge.
 
 Everything that moves a robot or changes a setting goes through `Commander.run`, so both front ends
-get the same rules: rooms must belong to the floor, zones must be sensible and inside the map, no
+get the same rules: rooms must belong to the robot's active map, zones must be sensible and inside the map, no
 clean is started while the robot is already cleaning, and only one command runs per robot at a time.
 """
 from __future__ import annotations
@@ -39,6 +39,7 @@ class Commander:
         self.robots, self.data = robots, Path(data_dir)
         self._busy = {rid: threading.Lock() for rid in robots}
         self._maps: dict[str, tuple[float, list[dict]]] = {}
+        self._metas: dict[str, tuple[int, dict]] = {}       # rid -> (file mtime, parsed meta.json)
         self.map_login = None               # callable(rid) -> Xiaomi login health, set by the server
         self.poke = None                    # callable(rid): ask the live reader for an immediate re-read
         self.on_room_renamed = None         # callable(rid): fetch the map again until the new name arrives
@@ -114,21 +115,29 @@ class Commander:
         return {"name": name, **robot.reset_consumable(name)}
 
     def _meta(self, rid: str) -> dict:
+        """The saved map's meta.json, parsed again only when the file changed (the MQTT bridge asks every second)."""
+        path = self.data / "maps" / rid / "meta.json"
         try:
-            return json.loads((self.data / "maps" / rid / "meta.json").read_text())
+            stamp = path.stat().st_mtime_ns
+            cached = self._metas.get(rid)
+            if cached and cached[0] == stamp:
+                return cached[1]
+            meta = json.loads(path.read_text())
         except (OSError, ValueError):
             raise Refused("no map for this robot yet, so its rooms are not known", 409)
+        self._metas[rid] = (stamp, meta)
+        return meta
 
     def map_rooms(self, rid: str) -> dict[int, str | None]:
         """Every room on the saved map -> the name stored on the robot (None = not named yet)."""
         return {r["id"]: r.get("name") for r in self._meta(rid).get("rooms", [])}
 
     def _active_map(self, rid: str, strict: bool) -> dict | None:
-        """The robot's active map, after checking that the saved map is that map: room ids belong to one
-        map, and after a map switch the saved copy needs about a minute to follow. strict: a robot that
-        cannot tell its active map is refused too."""
+        """The robot's active map, read fresh, after checking that the saved map is that map: room ids
+        belong to one map (a switch may also come from Mi Home), and after a switch the saved copy needs
+        about a minute to follow. strict: a robot that cannot tell its active map is refused too."""
         try:
-            cur = next((m for m in self.map_options(rid, max_age=0 if strict else 30) if m["cur"]), None)
+            cur = next((m for m in self.map_options(rid, max_age=0) if m["cur"]), None)
         except Exception:  # noqa: BLE001
             cur = None
         if cur is None:

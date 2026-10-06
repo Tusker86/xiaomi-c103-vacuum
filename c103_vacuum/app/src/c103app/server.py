@@ -1,6 +1,6 @@
 """Web server: live API, controls and the map page.  Run:  python -m c103app.server
 
-GET endpoints are read-only. POST endpoints (Phase 4) send commands to a robot over the LAN. They
+GET endpoints are read-only. POST endpoints send commands to a robot over the LAN. They
 need the header `X-Requested-With: vac` (so another website cannot make your browser send commands).
 """
 from __future__ import annotations

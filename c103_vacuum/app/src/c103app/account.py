@@ -116,11 +116,10 @@ class Account:
         asked from Xiaomi now; afterwards the saved list is used and refreshed in the background."""
         if self.cloud is None:
             return []
-        saved = _read(self.dir / "robots.json")
-        if saved is not None:
-            threading.Thread(target=self._refresh_list, args=(saved["devices"],), daemon=True,
-                             name="robot-list").start()
-            return saved["devices"]
+        saved = (_read(self.dir / "robots.json") or {}).get("devices")
+        if isinstance(saved, list):
+            threading.Thread(target=self._refresh_list, args=(saved,), daemon=True, name="robot-list").start()
+            return saved
         found = self._ask()
         if found:
             self._store(found)
@@ -167,8 +166,8 @@ class Account:
             return list(pool.map(self._list_region, regions))
 
     def _list_region(self, region: str):
-        try:
-            return region, self.cloud.devices(region)
+        try:                                             # its own connection: the regions are asked in parallel
+            return region, XiaomiCloud(**self.cloud.session()).devices(region)
         except Exception:  # noqa: BLE001  (a region that cannot be read counts as "no answer")
             return region, None
 

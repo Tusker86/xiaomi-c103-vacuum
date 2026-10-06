@@ -79,7 +79,7 @@ class RobotLive(threading.Thread):
                 "cleaning_area_m2": st.cleaning_area_m2,
                 "consumables": st.consumables, "dnd": st.dnd}
             self._activity = st.activity
-            if was in ("docked", "idle", "unknown") and st.activity == "cleaning" and was != "unknown":
+            if was in ("docked", "idle") and st.activity == "cleaning":
                 self.trail = []         # a fresh run starts: show only the new line
                 self.run_id += 1
 

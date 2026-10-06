@@ -188,6 +188,6 @@ class Account:
                 ids[did] = n
                 taken.add(n)
             out.append({"id": ids[did], "name": r.get("name") or ids[did], "host": r.get("localip"),
-                        "token": r.get("token"), "did": did, "mac": str(r.get("mac", "")).lower(),
+                        "token": r.get("token"), "did": did, "mac": str(r.get("mac", "")),
                         "region": region})
         return out

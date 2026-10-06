@@ -140,7 +140,7 @@ const ACT = {cleaning: "Cleaning", returning: "Returning to dock", docked: "Dock
 // Status-like values in the "fault" property: not errors. 2007 is undocumented (seen after a failed zone attempt).
 const FAULTS = {2105: "docked, full", 2103: "charging", 2110: "starting", 2108: "starting", 2007: "undocumented, not a confirmed fault"};
 const CONS = {main_brush: "Main brush", side_brush: "Side brush", filter: "Filter", mop: "Mop"};
-const S = { floor: null, state: {}, meta: {}, img: null, trail: {}, tick: 0, mode: 'rooms', sel: {}, zone: {}, busy: false };
+const S = { floor: null, state: {}, meta: {}, trail: {}, mode: 'rooms', sel: {}, zone: {}, busy: false };
 const MODE_NAMES = {0: 'sweep', 1: 'sweep_and_mop', 2: 'mop', 3: 'sweep_then_mop'};
 const FAN_NAMES = {0: 'silent', 1: 'standard', 2: 'medium', 3: 'turbo'}, WATER_NAMES = {0: 'low', 1: 'mid', 2: 'high'};
 const $ = id => document.getElementById(id);
@@ -252,7 +252,7 @@ async function updateTrail() {
   const id = S.floor; if (!id) return;
   const tr = S.trail[id] = S.trail[id] || {run: null, pts: []};
   const d = await getJSON(`api/trail/${id}?since=${tr.run === null ? 0 : tr.pts.length}`);
-  if (tr.run !== null && d.run !== tr.run) { tr.pts = []; return updateTrail.call(null, tr.run = null); }
+  if (tr.run !== null && d.run !== tr.run) { tr.pts = []; tr.run = null; return updateTrail(); }   // a new run: reload the line
   tr.run = d.run; tr.pts.push(...d.points);
 }
 
@@ -263,11 +263,9 @@ const toast = (msg, ok) => { const t = $("toast"); t.textContent = msg; t.classN
 async function send(action, body) {
   if (S.busy) return; S.busy = true; updateButtons();
   const headers = {"Content-Type": "application/json", "X-Requested-With": "vac"};
-  try { const tk = localStorage.getItem("vac.token"); if (tk) headers["X-Vac-Token"] = tk; } catch (e) {}
   try {
     const r = await fetch(`api/${S.floor}/${action}`, {method: "POST", headers, body: JSON.stringify(body || {})});
     const j = await r.json().catch(() => ({ok: false, error: "HTTP " + r.status}));
-    if (r.status === 403) { const tk = prompt("Access token?"); if (tk) { try { localStorage.setItem("vac.token", tk); } catch (e) {} } }
     if (j.ok === false) toast(j.error || "Failed", false);
     else if (j.started === false) toast("Sent, but the robot did not start moving.", false);
     else toast(action === "set" ? "Saved." : action === "reset-consumable" ? `Reset. Now ${j.life_pct == null ? "?" : j.life_pct}%.` : "Done.", true);
@@ -360,16 +358,16 @@ async function loadMaps() {
   const id = S.floor; if (!id) return;
   try {
     const j = await getJSON(`api/maps/${id}`); if (!j.ok || id !== S.floor) return;
-    S.maps = j.maps; const sel = $("mapSel"), many = j.maps.length > 1;
+    const sel = $("mapSel"), many = j.maps.length > 1;
     sel.hidden = $("mapLbl").hidden = !many;
     if (!many) return;
-    sel.innerHTML = j.maps.map(m => `<option value="${m.id}">${m.label}</option>`).join("");
+    sel.replaceChildren(...j.maps.map(m => Object.assign(document.createElement("option"), {value: m.id, textContent: m.label})));
     const cur = j.maps.find(m => m.cur); if (cur && document.activeElement !== sel) sel.value = cur.id;
   } catch (e) {}
 }
 $("mapSel").onchange = async e => {
   const r = await send("set-map", {map_id: parseInt(e.target.value, 10)});
-  if (r && r.ok) toast("Map switched. Room buttons only work on the main map.", true);
+  if (r && r.ok) toast("Map switched. The map picture follows within about a minute.", true);
   loadMaps();
 };
 $("volume").oninput = e => { $("volText").textContent = e.target.value; };
@@ -390,8 +388,9 @@ async function tick() {
     S.state = await getJSON("api/state");
     if (S.floor && (S.n = (S.n || 0) + 1) % 15 === 0) { try { await checkMap(); } catch (e) {} }
     if (S.floor && S.n % 60 === 0) loadMaps();
-    if (!S.floor) {
-      const ids = Object.keys(S.state); buildTabs(ids);
+    const ids = Object.keys(S.state);
+    if (!S.floor && ids.length) {
+      buildTabs(ids);
       let want = null; try { want = localStorage.getItem("vac.floor"); } catch (e) {}
       await selectFloor(ids.includes(want) ? want : ids[0]);
     }

@@ -26,7 +26,7 @@ def _decode_grid(v: dict) -> list[int]:
     return grid + [0] * (v["size"]["x"] * v["size"]["y"] - len(grid))
 
 
-def render(v: dict, floor: str) -> tuple[bytes, dict]:
+def render(v: dict) -> tuple[bytes, dict]:
     """Return (png_bytes, meta). `meta` maps robot metres to image pixels and lists the rooms."""
     w, h, res, b = v["size"]["x"], v["size"]["y"], v["resolution"], v["bounds"]
     grid = _decode_grid(v)
@@ -42,9 +42,15 @@ def render(v: dict, floor: str) -> tuple[bytes, dict]:
 
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     px = img.load()
+    sums: dict[int, list[float]] = {}            # per room: sum of cell columns, rows and the cell count (its centre)
     for i, val in enumerate(grid):
         x, y = i % w, i // w
         rid = own[x, y]
+        if rid:
+            t = sums.setdefault(rid, [0, 0, 0])
+            t[0] += x
+            t[1] += y
+            t[2] += 1
         if val in (255, 128):
             px[x, y] = WALL
         elif rid:
@@ -68,14 +74,6 @@ def render(v: dict, floor: str) -> tuple[bytes, dict]:
     to_px = lambda col, row: ((col - x0) * SCALE, (row - y0) * SCALE)  # noqa: E731
 
     on_map = {r["id"]: r["name"] for r in v.get("rooms", [])}   # names stored in the robot's own map
-    sums: dict[int, list[float]] = {}
-    for i in range(w * h):
-        rid = own[i % w, i // w]
-        if rid:
-            t = sums.setdefault(rid, [0, 0, 0])
-            t[0] += i % w
-            t[1] += i // w
-            t[2] += 1
     rooms = []
     for chain in v["room_chains"]:
         rid = chain["id"]
@@ -87,9 +85,8 @@ def render(v: dict, floor: str) -> tuple[bytes, dict]:
                       "rings_px": [[[round(c), round(r)] for c, r in (to_px(p[0], flip(p[1])) for p in ring)]
                                    for ring in chain["rings"]]})
 
-    cb = v["charger"]
     meta = {"map_id": v["map_id"], "size_px": list(img.size), "origin_px": [ox, oy],
-            "px_per_m": ppm, "charger": cb, "rooms": rooms}
+            "px_per_m": ppm, "charger": v["charger"], "rooms": rooms}
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return buf.getvalue(), meta

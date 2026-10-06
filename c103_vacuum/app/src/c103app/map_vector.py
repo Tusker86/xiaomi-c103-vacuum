@@ -2,8 +2,6 @@
 trimmed to the c103 (ijai protobuf) only.
 
 Extract a vector/grid map representation from the decoded ijai blob.
-
-See docs/dev/map-pipeline.md for the per-brand map pipeline details.
 """
 from __future__ import annotations
 
@@ -48,7 +46,7 @@ def _pt(p: Any, to_m: Callable[[Any], Any] = lambda v: v) -> dict[str, float]:
 # The firmware's roomChain is a coarse ~8-vertex cartoon of each room. The
 # labelled occupancy grid is ground truth: one byte/cell, room id 10-59 (or the
 # same id + 50 when that room is "selected"). We trace the EXACT cell outline of
-# each room along grid lines — no smoothing — so the card renders pixel-true
+# each room along grid lines — no smoothing — so the page renders pixel-true
 # room areas (the staircase is sub-pixel at card size, exactly like the raw blob
 # the official app draws). Each room becomes one {id, rings:[[[col,row],...]]}
 # entry; multiple rings (disconnected pieces + furniture holes) render as a
@@ -158,13 +156,7 @@ def _signed_area(loop: list[list[int]]) -> float:
 
 
 def _chains_from_masks(masks: dict[int, set]) -> list[dict[str, Any]]:
-    """Trace each label's cell mask into its outer-boundary rings.
-
-    Split out of `trace_room_chains` so a parser whose grid uses a DIFFERENT
-    label alphabet can reuse the identical tracing, winding and ring-selection
-    rules — `extract_json_grid` keys its masks by real room id, which for the
-    xiaomi JSON family sits outside the ijai 10-59 band.
-    """
+    """Trace each label's cell mask into its outer-boundary rings."""
     chains: list[dict[str, Any]] = []
     for lab in sorted(masks):
         loops = _trace_mask(masks[lab])
@@ -190,7 +182,7 @@ def trace_room_chains(grid: bytes, w: int, h: int) -> list[dict[str, Any]]:
     obstacles are a separate layer drawn on top — never holes punched into the
     fill. So we keep only the OUTER boundary of each room component and drop
     interior holes (furniture/wall cells). Outline is exact (no smoothing); the
-    card fills it with no stroke, so the staircase is sub-pixel like the raw blob.
+    page fills it with no stroke, so the staircase is sub-pixel like the raw blob.
     """
     masks: dict[int, set] = {}
     for r in range(h):
@@ -236,12 +228,6 @@ def extract_grid(unpacked: bytes) -> dict[str, Any]:
         "resolution": h.resolution,
         "grid_rle": _rle(grid),  # row-major, len == sizeX*sizeY when expanded
         "room_chains": chains,   # grid-cell polygons; may be empty
-        # legend so the card can theme cell types without magic numbers
-        "legend": {
-            "outside": 0, "floor": 1, "new_area": 2, "wall": 255,
-            "room_min": 10, "room_max": 59,
-            "selected_room_min": 60, "selected_room_max": 109,
-        },
     }
 
 

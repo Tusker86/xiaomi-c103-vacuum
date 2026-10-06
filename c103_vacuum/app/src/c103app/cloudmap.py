@@ -42,7 +42,7 @@ def match_all(robots: dict[str, Robot], found: list[dict]) -> dict[str, dict]:
     out = {}
     for rid, robot in robots.items():
         mac = (robot.mac() or "").lower()
-        d = next((d for d in found if d["mac"] == mac or d["host"] == robot.host), None)
+        d = next((d for d in found if d["mac"].lower() == mac or d["host"] == robot.host), None)
         if d:
             out[rid] = d
         elif found:
@@ -124,7 +124,7 @@ class CloudMaps:
             st["changed"] = False
             return st
         vec = {k: v for k, v in res.vector.items() if k not in LIVE_KEYS}
-        png, meta = maprender.render(vec, rid)
+        png, meta = maprender.render(vec)
         meta.update(imported_at=int(time.time()), source="cloud", content_hash=res.content_hash, names_sig=names_sig)
         out.mkdir(parents=True, exist_ok=True)
         _write_json(out / "vector.json", vec)

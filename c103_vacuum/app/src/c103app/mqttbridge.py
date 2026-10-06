@@ -113,8 +113,6 @@ class MqttBridge(threading.Thread):
 
     # --- discovery ----------------------------------------------------------------
     def _discover(self) -> None:
-        for rid in self.names:                    # the old "Find robot" button became the switch above
-            self.client.publish(f"{DISCOVERY}/button/c103app_{rid}/locate/config", "", retain=True)
         for rid in self.names:
             for kind, obj, cfg in self._entities(rid):
                 self.client.publish(f"{DISCOVERY}/{kind}/c103app_{rid}/{obj}/config", _j(cfg), retain=True)

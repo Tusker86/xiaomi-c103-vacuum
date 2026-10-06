@@ -1,2 +1,6 @@
 __pycache__/
 *.pyc
+
+# scratch from page design work, never part of the add-on
+/backups/
+/design/

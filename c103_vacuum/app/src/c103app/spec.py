@@ -61,6 +61,7 @@ SET_CUR_MAP = (10, 3)    # in piid 6 = map id
 DEL_MAP = (10, 4)
 RENAME_ROOM = (10, 7)    # in: piid 6 = map id, 9 = room id, 10 = name. Verified: applied without an ack; shows in the cloud map one upload later
 RENAME_MAP = (10, 5)     # in piid 6 = map id, piid 8 = name
+MERGE_ROOMS = (10, 8)    # arrange-name; CLOUD ONLY (verified 2026-10-06). in: map id, room ids as a CSV string, language
 GET_CUR_PATH = (10, 12)  # only returns points after the current block; cannot select a range
 # Zone clean (VERIFIED on the 1f robot, Living Room, 2026-10-05): WRITE the property
 # ZONE_POINTS = "x1,y1,x2,y2,x3,y3,x4,y4" (four corners, METRES, map frame), then call START_ZONE_CLEAN.

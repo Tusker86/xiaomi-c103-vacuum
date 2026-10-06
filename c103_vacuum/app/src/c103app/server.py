@@ -24,6 +24,7 @@ WEB = ROOT / "web"
 DATA = Path(os.environ.get("C103_DATA", ROOT / "data"))
 STATE = Path(os.environ.get("C103_STATE", DATA.parent))   # Xiaomi session + robot list
 NO_CACHE = {"Cache-Control": "no-cache"}
+MERGE_POLLS, MERGE_POLL_S = 12, 15        # after a merge: look at the map every 15 s, for 3 minutes
 
 
 def make_app() -> web.Application:
@@ -83,6 +84,10 @@ def make_app() -> web.Application:
             return web.json_response({"ok": False, "error": f"{type(ex).__name__}: {ex}"}, status=502)
         return web.json_response({"ok": True, "maps": options}, headers=NO_CACHE)
 
+    async def merge_state(request):
+        rid = robot_or_404(request).robot.id
+        return web.json_response(commander.merge_status.get(rid, {"state": "idle", "message": ""}), headers=NO_CACHE)
+
     async def map_file(request):
         robot_or_404(request)
         name = request.match_info["name"]
@@ -109,6 +114,38 @@ def make_app() -> web.Application:
                     threading.Thread(target=target, args=(rid,), daemon=True, name="map-refresh").start()
             return hook
 
+        def _merge(rid, map_id, rooms, name):
+            """Send the merge to Xiaomi, then watch the saved map in the background: the cloud applies it
+            a little later, and the merged room comes back without its name."""
+            if rid not in maps.robots:
+                raise Refused("this robot has no map from the Xiaomi cloud, so it cannot be merged", 409)
+            try:
+                backup = maps.merge_rooms(rid, map_id, rooms)
+            except Exception as ex:  # noqa: BLE001
+                raise Refused(str(ex), 502)
+            commander.merge_status[rid] = {"state": "working", "message": "Merging. This takes about a minute."}
+            threading.Thread(target=_finish_merge, args=(rid, rooms, name), daemon=True, name="merge").start()
+            return {"backup": backup}
+
+        def _finish_merge(rid, rooms, name):
+            st = commander.merge_status[rid]
+            try:
+                for _ in range(MERGE_POLLS):
+                    time.sleep(MERGE_POLL_S)
+                    maps.refresh(rid)
+                    left = [r for r in rooms if r in commander.map_rooms(rid)]
+                    if len(left) < len(rooms):
+                        break
+                else:
+                    st.update(state="unchanged", message="Xiaomi accepted it, but the map has not changed. "
+                                                         "The rooms may not touch each other.")
+                    return
+                commander.run(rid, "rename-room", {"room": left[0], "name": name})
+                st.update(state="done", message=f'Merged. The room is now "{name}"; the map shows it within a minute.')
+            except Exception as ex:  # noqa: BLE001
+                st.update(state="error", message=f"The merge went through, but naming the room failed: {ex}. Rename it yourself.")
+
+        commander.merge_cloud = _merge
         commander.on_room_renamed = _later(_after_rename)
         commander.on_map_changed = _later(maps.refresh)      # a map switch: pull the new map right away
     mqtt_cfg = config.load_mqtt(opts)              # optional: the MQTT settings (Configuration tab)
@@ -147,6 +184,7 @@ def make_app() -> web.Application:
         web.get("/api/cloudmap", cloud_status),
         web.get("/api/maps/{rid}", robot_maps),
         web.get("/api/map/{rid}/{name}", map_file),
+        web.get("/api/merge/{rid}", merge_state),
         web.post("/api/{rid}/{action}", command),
     ])
     return app

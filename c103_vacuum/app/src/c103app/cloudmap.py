@@ -10,12 +10,13 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import sys
 import threading
 import time
 from pathlib import Path
 
-from . import config, maprender
+from . import config, maprender, spec
 from .account import Account
 from .mapfetch import FetchResult, MapFetcher
 from .robot import Robot
@@ -85,6 +86,25 @@ class CloudMaps:
             if res.vector is None and any(o == "no_url" for o in res.outcomes.values()) and self.acct.renew():
                 res = self._fetcher(rid).fetch()
         return res
+
+    def merge_rooms(self, rid: str, map_id: int, rooms: list[int]) -> str:
+        """Merge rooms through the Xiaomi cloud (the robot ignores the same call over the LAN). Copies the
+        saved map first, since a merge cannot be undone. Returns the backup folder name."""
+        src, stamp = self.data / "maps" / rid, time.strftime("%Y%m%d-%H%M%S")
+        name = f"pre-merge-{rid}-{stamp}"
+        dest = self.data / "backups" / name
+        dest.mkdir(parents=True, exist_ok=True)
+        for f in ("vector.json", "base.png", "meta.json"):
+            if (src / f).exists():
+                shutil.copy2(src / f, dest / f)
+        d = self.info[rid]
+        with self.acct.lock:
+            resp = self.acct.cloud.action(d["region"], d["did"], *spec.MERGE_ROOMS,
+                                          [int(map_id), ",".join(str(r) for r in rooms), "en"])
+        code = (resp or {}).get("result", {}).get("code") if isinstance(resp, dict) else None
+        if resp is None or (resp.get("code") not in (0, None)) or code not in (0, None):
+            raise RuntimeError(f"Xiaomi did not accept the merge (reply: {json.dumps(resp)[:200]})")
+        return name
 
     def refresh(self, rid: str, request_upload: bool = True) -> dict:
         """One refresh. Never raises: an error is returned in the status (a crash here would end the scheduler)."""

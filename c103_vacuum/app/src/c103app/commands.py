@@ -17,6 +17,7 @@ from .robot import Robot
 
 MIN_ZONE_M, MAX_ZONE_M, MAX_ZONE_AREA_M2 = 0.4, 30.0, 200.0
 QUEUE_WAIT_S = 20
+MAX_MERGE_ROOMS = 6
 
 
 class Refused(Exception):
@@ -44,6 +45,8 @@ class Commander:
         self.poke = None                    # callable(rid): ask the live reader for an immediate re-read
         self.on_room_renamed = None         # callable(rid): fetch the map again until the new name arrives
         self.on_map_changed = None          # callable(rid): set by the server to refresh the saved map
+        self.merge_cloud = None             # callable(rid, map_id, rooms, name) -> dict: set by the server when the Xiaomi login exists
+        self.merge_status: dict[str, dict] = {}     # rid -> {"state": working|done|unchanged|error, "message": str}
 
     def _bounds(self, rid: str) -> dict:
         try:
@@ -102,6 +105,8 @@ class Commander:
                 return self._rename_room(rid, robot, body)
             if action == "set-map":
                 return self._set_map(rid, robot, body)
+            if action == "merge-rooms":
+                return self._merge_rooms(rid, robot, body)
             raise Refused("unknown action", 404)
         finally:
             self._busy[rid].release()
@@ -170,6 +175,30 @@ class Commander:
         if self.on_room_renamed:
             self.on_room_renamed(rid)
         return {"room": room, "name": name, "ack_error": ack}
+
+    def _merge_rooms(self, rid: str, robot: Robot, body: dict) -> dict:
+        """Merge 2+ rooms of the active map into one. The merge itself goes through the Xiaomi cloud and
+        cannot be undone; the saved map is copied first. The merged room loses its name, so it is named again."""
+        rooms, known = body.get("rooms"), self.map_rooms(rid)
+        if (not isinstance(rooms, list) or len(rooms) < 2 or len(rooms) > MAX_MERGE_ROOMS
+                or not all(isinstance(r, int) and not isinstance(r, bool) for r in rooms)
+                or len(set(rooms)) != len(rooms) or not set(rooms) <= set(known)):
+            raise Refused(f"rooms must be 2-{MAX_MERGE_ROOMS} different ids from {sorted(known)}")
+        name = body.get("name")
+        if name is None:
+            name = next((known[r] for r in rooms if known[r]), None)       # keep a name the rooms already have
+        name = str(name or "").strip()
+        if not 1 <= len(name) <= 24 or not name.isprintable():
+            raise Refused("the merged room needs a name of 1-24 printable characters")
+        if robot.is_cleaning():
+            raise Refused("the robot is cleaning", 409)
+        if self.merge_cloud is None:
+            raise Refused("merging rooms needs the Xiaomi login (the map download); it is not set up", 409)
+        cur = self._active_map(rid, strict=True)
+        if self.merge_status.get(rid, {}).get("state") == "working":
+            raise Refused("a merge is still being applied", 409)
+        res = self.merge_cloud(rid, cur["id"], sorted(rooms), name)
+        return {"rooms": sorted(rooms), "name": name, **res}
 
     def _set_map(self, rid: str, robot: Robot, body: dict) -> dict:
         maps = self.map_options(rid, max_age=0)

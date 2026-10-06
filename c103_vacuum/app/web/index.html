@@ -117,6 +117,7 @@
           <button class="btn primary" id="goBtn" disabled>Clean selected</button>
           <button class="btn" id="allBtn">All rooms</button>
           <button class="btn" id="renBtn" title="Select one room, then rename it. The name is saved on the robot.">Rename</button>
+          <button class="btn" id="mergeBtn" title="Select two or more rooms that touch, then merge them into one. This cannot be undone.">Merge</button>
         </div>
         <div class="btns">
           <button class="btn warn" id="stopBtn">Stop</button>
@@ -305,6 +306,8 @@ function updateButtons() {
   $("allBtn").disabled = S.busy || cleaning;
   $("renBtn").style.display = S.mode === "rooms" ? "" : "none";
   $("renBtn").disabled = S.busy || cleaning || nSel !== 1;
+  $("mergeBtn").style.display = S.mode === "rooms" ? "" : "none";
+  $("mergeBtn").disabled = S.busy || cleaning || S.merging || nSel < 2;
   for (const id of ["stopBtn", "dockBtn", "findBtn"]) $(id).disabled = S.busy;
   $("findBtn").classList.toggle("on", !!s.alarm);          // lit while the robot is beeping
   $("hint").textContent = S.mode === "rooms"
@@ -352,6 +355,24 @@ $("renBtn").onclick = async () => {
   const r = await send("rename-room", {room: id, name: name.trim()});
   if (r && r.ok) { S.sel[S.floor].clear(); toast("Saved on the robot. The map shows the new name within about a minute.", true); }
   render(); updateButtons();
+};
+$("mergeBtn").onclick = async () => {
+  const floor = S.floor, ids = [...(S.sel[floor] || [])].sort((a, b) => a - b);
+  const rooms = S.meta[floor].rooms, label = id => (rooms.find(r => r.id === id) || {}).name || `room ${id}`;
+  if (ids.length < 2) return;
+  const name = prompt(`Merge ${ids.map(label).join(" + ")} into one room.\nThis cannot be undone (the map is copied first).\n\nName for the merged room (max 24 characters):`,
+                      ids.map(label).find(n => !n.startsWith("room ")) || "");
+  if (name === null || !name.trim()) return;
+  const r = await send("merge-rooms", {rooms: ids, name: name.trim()});
+  if (!r || !r.ok) return;
+  S.sel[floor].clear(); S.merging = true; render(); updateButtons();
+  toast("Merging. This takes about a minute.", true);
+  for (let i = 0; i < 50; i++) {
+    await new Promise(res => setTimeout(res, 5000));
+    const j = await getJSON(`api/merge/${floor}`).catch(() => null);
+    if (j && j.state !== "working") { toast(j.message, j.state === "done"); break; }
+  }
+  S.merging = false; updateButtons();
 };
 $("stopBtn").onclick = () => send("stop");
 $("dockBtn").onclick = () => send("dock");

@@ -116,6 +116,13 @@ class XiaomiCloud:
                 continue
         return None
 
+    def action(self, server: str, did: str, siid: int, aiid: int, values: list) -> dict | None:
+        """Call a MIoT action through the cloud. `values` are the action's inputs in order. Some map
+        actions (room merge) only take effect this way: the same call sent over the LAN is acknowledged
+        and ignored."""
+        body = {"params": {"did": str(did), "siid": siid, "aiid": aiid, "in": list(values)}}
+        return self._call(self._api_url(server) + "/miotspec/action", {"data": json.dumps(body)})
+
     def download(self, url: str) -> bytes | None:
         """The map blob sits on a Beijing storage server that is sometimes slow: allow 30 s, try twice."""
         for attempt in (1, 2):

@@ -220,6 +220,8 @@ class Commander:
             robot.set_water(val)
         elif key == "mode" and val in spec.MODES:
             robot.set_mode(val)
+        elif key == "mop_route" and val in spec.MOP_ROUTES:
+            robot.set_mop_route(val)
         elif key == "repeat" and isinstance(val, bool):
             robot.set_repeat(val)
         elif key == "volume" and isinstance(val, int) and not isinstance(val, bool) and 0 <= val <= 10:

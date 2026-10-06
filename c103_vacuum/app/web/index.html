@@ -52,6 +52,7 @@
   @keyframes pulse { 50% { opacity: .35; } }
   .rows { margin-top: 10px; display: grid; gap: 6px; }
   .row { display: flex; justify-content: space-between; gap: 10px; }
+  .row[hidden] { display: none; }
   .row span:first-child { color: var(--muted); }
   .bar { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; margin-top: 3px; }
   .bar > i { display: block; height: 100%; background: var(--good); }
@@ -97,7 +98,13 @@
           <div><div class="row"><span>Battery</span><span id="batText">–</span></div>
             <div class="bar" id="batBar"><i style="width:0"></i></div></div>
           <div class="row"><span>This run</span><span id="runText">–</span></div>
+          <div class="row"><span>Fitted</span><span id="fitText">–</span></div>
+          <div class="row"><span>Do not disturb</span><span id="dndText">–</span></div>
+          <div class="row" id="newMapRow" hidden><span>New map</span><span>waiting to be saved</span></div>
           <div class="row"><span>Fault code</span><span id="faultText">–</span></div>
+          <div class="row"><span>Firmware</span><span id="fwText">–</span></div>
+          <div class="row"><span>Time zone, voice</span><span id="tzText">–</span></div>
+          <div class="row"><span>Serial</span><span id="snText">–</span></div>
           <div class="row"><span>Updated</span><span id="updText">–</span></div>
           <div class="row"><span>Map download</span><span id="loginText">–</span></div>
         </div>
@@ -121,6 +128,7 @@
           <label for="fan">Suction</label><select id="fan"><option>silent</option><option>standard</option><option>medium</option><option>turbo</option></select>
           <label for="water">Water</label><select id="water"><option>low</option><option>mid</option><option>high</option></select>
           <label for="cmode">Mode</label><select id="cmode"><option value="sweep">Sweep</option><option value="sweep_and_mop">Sweep + mop</option><option value="mop">Mop</option><option value="sweep_then_mop">Sweep then mop</option></select>
+          <label for="route">Mop route</label><select id="route"><option value="s">S (rows)</option><option value="y">Y (cross)</option></select>
           <label for="mapSel" id="mapLbl" hidden>Active map</label><select id="mapSel" hidden></select>
           <label for="repeat">Repeat clean</label><input type="checkbox" id="repeat">
           <label for="volume">Volume <b id="volText"></b></label><input type="range" id="volume" min="0" max="10" step="1">
@@ -141,7 +149,8 @@ const ACT = {cleaning: "Cleaning", returning: "Returning to dock", docked: "Dock
 const FAULTS = {2105: "docked, full", 2103: "charging", 2110: "starting", 2108: "starting", 2007: "undocumented, not a confirmed fault"};
 const CONS = {main_brush: "Main brush", side_brush: "Side brush", filter: "Filter", mop: "Mop"};
 const S = { floor: null, state: {}, meta: {}, trail: {}, mode: 'rooms', sel: {}, zone: {}, busy: false };
-const MODE_NAMES = {0: 'sweep', 1: 'sweep_and_mop', 2: 'mop', 3: 'sweep_then_mop'};
+const MODE_NAMES = {0: 'sweep', 1: 'sweep_and_mop', 2: 'mop', 3: 'sweep_then_mop'}, ROUTE_NAMES = {0: 's', 1: 'y'};
+const BOX_NAMES = {0: "no box", 1: "dust box", 2: "water box", 3: "combined box"};
 const FAN_NAMES = {0: 'silent', 1: 'standard', 2: 'medium', 3: 'turbo'}, WATER_NAMES = {0: 'low', 1: 'mid', 2: 'high'};
 const $ = id => document.getElementById(id);
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -229,6 +238,15 @@ function fillPanel() {
   $("batText").textContent = s.battery == null ? "–" : s.battery + "%";
   const bb = $("batBar"); bb.className = "bar" + (s.battery < 15 ? " crit" : s.battery < 30 ? " low" : ""); bb.firstElementChild.style.width = (s.battery || 0) + "%";
   $("runText").textContent = s.cleaning_time_min == null ? "–" : `${s.cleaning_time_min} min · ${s.cleaning_area_m2} m²`;
+  $("fitText").textContent = s.box == null ? "–" : `${BOX_NAMES[s.box] || "unknown box"}, ${s.cloth ? "cloth on" : "no cloth"}`;
+  $("fwText").textContent = s.firmware || "–"; $("snText").textContent = s.serial || "–";
+  const tz = s.timezone_s == null ? null : "UTC" + (s.timezone_s < 0 ? "-" : "+") + Math.floor(Math.abs(s.timezone_s) / 3600) +
+    (Math.abs(s.timezone_s) % 3600 ? ":" + String(Math.floor(Math.abs(s.timezone_s) % 3600 / 60)).padStart(2, "0") : "");
+  $("tzText").textContent = [tz, s.language].filter(Boolean).join(", ") || "–";
+  $("newMapRow").hidden = !s.new_map;
+  const d = s.dnd || {}, hhmm = (h, m) => String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
+  $("dndText").textContent = d.enable == null ? "–" :
+    `${d.enable ? "on" : "off"}, ${hhmm(d.start_hour, d.start_minute)}–${hhmm(d.end_hour, d.end_minute)}`;
   $("faultText").textContent = s.fault == null ? "–" : (FAULTS[s.fault] ? `${s.fault} (${FAULTS[s.fault]})` : s.fault === 0 ? "none" : `${s.fault} (unknown code)`);
   $("updText").textContent = s.updated ? Math.max(0, Math.round(Date.now() / 1000 - s.updated)) + " s ago" : "–";
   const LOGIN = {ok: "OK", unknown: "checking…", off: "off",
@@ -301,7 +319,7 @@ function updateButtons() {
 function syncSettings() {
   const s = S.state[S.floor]; if (!s) return;
   const put = (id, v, prop = "value") => { const el = $(id); if (el && document.activeElement !== el && v != null) el[prop] = v; };
-  put("fan", FAN_NAMES[s.fan]); put("water", WATER_NAMES[s.water]); put("cmode", MODE_NAMES[s.mode]);
+  put("fan", FAN_NAMES[s.fan]); put("water", WATER_NAMES[s.water]); put("cmode", MODE_NAMES[s.mode]); put("route", ROUTE_NAMES[s.mop_route]);
   put("repeat", !!s.repeat, "checked"); put("volume", s.volume); $("volText").textContent = s.volume == null ? "" : s.volume;
 }
 
@@ -345,6 +363,7 @@ $("findBtn").onclick = () => send("locate");
 $("fan").onchange = e => send("set", {key: "fan", value: e.target.value});
 $("water").onchange = e => send("set", {key: "water", value: e.target.value});
 $("cmode").onchange = e => send("set", {key: "mode", value: e.target.value});
+$("route").onchange = e => send("set", {key: "mop_route", value: e.target.value});
 $("repeat").onchange = e => send("set", {key: "repeat", value: e.target.checked});
 $("volume").onchange = e => send("set", {key: "volume", value: parseInt(e.target.value, 10)});
 $("cons").onclick = e => {

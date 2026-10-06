@@ -11,7 +11,9 @@ import re
 MODEL = "xiaomi.vacuum.c103"
 
 # --- properties: (siid, piid) -------------------------------------------------
-STATUS = (2, 1)          # verified: 5/6/7 = cleaning, 10 = docked and full
+FIRMWARE = (1, 4)        # read-only, e.g. "4.3.5_0046"
+SERIAL = (1, 5)          # read-only; the same serial the map key is built from
+STATUS = (2, 1)         # verified: 5/6/7 = cleaning, 10 = docked and full
 FAULT = (2, 2)           # verified: 2105 is the normal "docked, full" code
 MODE = (2, 4)            # 0 sweep, 1 sweep+mop, 2 mop, 3 sweep then mop
 SWEEP_TYPE = (2, 8)      # READ-ONLY in practice: writes get no reply and do not apply (tested)
@@ -21,6 +23,11 @@ VOLUME = (4, 2)          # verified
 REPEAT = (7, 1)
 FAN = (7, 5)             # 0 silent, 1 standard, 2 medium, 3 turbo
 WATER = (7, 6)           # 0 low, 1 mid, 2 high
+BOX = (7, 3)             # read-only: 0 none, 1 dust box, 2 water box, 3 combined box
+CLOTH = (7, 4)           # read-only: 0 no mop cloth, 1 cloth fitted
+MOP_ROUTE = (7, 7)      # 0 S (parallel rows), 1 Y (cross-hatch); read/write per the published spec
+TIMEZONE = (7, 20)       # seconds from UTC, e.g. -28800 (the robot's clock is not on local time)
+LANGUAGE = (7, 21)       # voice language, e.g. "zh_CN"
 CLEANING_TIME = (7, 22)  # minutes in the current/last run
 CLEANING_AREA = (7, 23)  # m2 in the current/last run
 
@@ -71,6 +78,8 @@ CLEANING_STATES = {5, 6, 7}
 
 FAN_SPEEDS = {"silent": 0, "standard": 1, "medium": 2, "turbo": 3}
 WATER_LEVELS = {"low": 0, "mid": 1, "high": 2}
+MOP_ROUTES = {"s": 0, "y": 1}
+BOXES = {0: "none", 1: "dust box", 2: "water box", 3: "combined box"}
 MODES = {"sweep": 0, "sweep_and_mop": 1, "mop": 2, "sweep_then_mop": 3}
 SWEEP_TYPES = {"global": 0, "mop": 1, "edge": 2, "area": 3, "point": 4,
                "remote": 5, "explore": 6, "room": 7, "floor": 8}

@@ -37,6 +37,14 @@ class Status:
     cleaning_area_m2: int | None
     consumables: dict = field(default_factory=dict)  # name -> {life_pct, hours_left}
     dnd: dict = field(default_factory=dict)
+    mop_route: int | None = None
+    box: int | None = None
+    cloth: int | None = None
+    new_map: bool | None = None
+    firmware: str | None = None
+    serial: str | None = None
+    timezone_s: int | None = None
+    language: str | None = None
 
 
 @dataclass
@@ -51,6 +59,10 @@ def _int(v):
         return int(v)
     except (TypeError, ValueError):
         return None
+
+
+def _text(v):
+    return v if isinstance(v, str) and v else None
 
 
 class Robot:
@@ -105,7 +117,9 @@ class Robot:
     def status(self) -> Status:
         want = [spec.STATUS, spec.FAULT, spec.MODE, spec.SWEEP_TYPE, spec.BATTERY, spec.ALARM,
                 spec.VOLUME, spec.REPEAT, spec.FAN, spec.WATER, spec.CLEANING_TIME,
-                spec.CLEANING_AREA, *spec.DND.values()]
+                spec.CLEANING_AREA, spec.MOP_ROUTE, spec.BOX, spec.CLOTH,
+                spec.MAP_LIST_HAS_NEW, spec.FIRMWARE, spec.SERIAL,
+                spec.TIMEZONE, spec.LANGUAGE, *spec.DND.values()]
         for c in spec.CONSUMABLES.values():
             want += [c["life_pct"], c["hours_left"]]
         v = self._get(want)
@@ -125,6 +139,10 @@ class Robot:
             consumables={name: {k: _int(v.get(p)) for k, p in c.items()}
                          for name, c in spec.CONSUMABLES.items()},
             dnd={k: _int(v.get(p)) for k, p in spec.DND.items()},
+            firmware=_text(v.get(spec.FIRMWARE)), serial=_text(v.get(spec.SERIAL)),
+            timezone_s=_int(v.get(spec.TIMEZONE)), language=_text(v.get(spec.LANGUAGE)),
+            mop_route=_int(v.get(spec.MOP_ROUTE)), box=_int(v.get(spec.BOX)), cloth=_int(v.get(spec.CLOTH)),
+            new_map=None if v.get(spec.MAP_LIST_HAS_NEW) is None else bool(_int(v.get(spec.MAP_LIST_HAS_NEW))),
         )
 
     def path_tail(self) -> PathTail:
@@ -193,6 +211,9 @@ class Robot:
 
     def set_mode(self, name: str) -> None:
         self._set(spec.MODE, spec.MODES[name])
+
+    def set_mop_route(self, name: str) -> None:
+        self._set(spec.MOP_ROUTE, spec.MOP_ROUTES[name])
 
     def set_repeat(self, on: bool) -> None:
         self._set(spec.REPEAT, 1 if on else 0)

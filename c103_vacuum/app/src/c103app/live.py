@@ -77,7 +77,10 @@ class RobotLive(threading.Thread):
                 "fan": st.fan, "water": st.water, "repeat": st.repeat, "alarm": st.alarm,
                 "volume": st.volume, "cleaning_time_min": st.cleaning_time_min,
                 "cleaning_area_m2": st.cleaning_area_m2,
-                "consumables": st.consumables, "dnd": st.dnd}
+                "consumables": st.consumables, "dnd": st.dnd, "mop_route": st.mop_route,
+                "box": st.box, "cloth": st.cloth, "new_map": st.new_map,
+                "firmware": st.firmware, "serial": st.serial,
+                "timezone_s": st.timezone_s, "language": st.language}
             self._activity = st.activity
             if was in ("docked", "idle") and st.activity == "cleaning":
                 self.trail = []         # a fresh run starts: show only the new line

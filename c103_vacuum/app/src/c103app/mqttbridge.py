@@ -32,6 +32,24 @@ STALE_S = 30           # a robot whose live data is older than this is reported 
 INV = lambda d: {v: k for k, v in d.items()}  # noqa: E731
 FAN_NAMES, WATER_NAMES = INV(spec.FAN_SPEEDS), INV(spec.WATER_LEVELS)
 MODE_NAMES, SWEEP_NAMES = INV(spec.MODES), INV(spec.SWEEP_TYPES)
+ROUTE_NAMES = INV(spec.MOP_ROUTES)
+
+
+def utc_label(seconds) -> str | None:
+    """-28800 -> "UTC-8", 19800 -> "UTC+5:30"."""
+    if not isinstance(seconds, int):
+        return None
+    minutes = abs(seconds) // 60
+    hours, rest = divmod(minutes, 60)
+    return f"UTC{'-' if seconds < 0 else '+'}{hours}" + (f":{rest:02d}" if rest else "")
+
+
+def dnd_window(dnd: dict) -> str | None:
+    """The do-not-disturb hours as "22:00-08:00", or None when the robot did not report them."""
+    parts = [dnd.get(k) for k in ("start_hour", "start_minute", "end_hour", "end_minute")]
+    if None in parts:
+        return None
+    return "{:02d}:{:02d}-{:02d}:{:02d}".format(*parts)
 HA_STATES = {"cleaning", "returning", "docked", "idle", "paused"}
 CONS_LABELS = {"main_brush": "Main brush", "side_brush": "Side brush", "filter": "Filter", "mop": "Mop"}
 
@@ -139,6 +157,24 @@ class MqttBridge(threading.Thread):
                   entity_category="diagnostic")
         yield ent("sensor", "sweep_type", "Sweep type", state_topic=st, entity_category="diagnostic",
                   value_template="{{ value_json.sweep_type }}")
+        yield ent("sensor", "box", "Box fitted", state_topic=st, entity_category="diagnostic",
+                  value_template="{{ value_json.box }}")
+        yield ent("binary_sensor", "cloth", "Mop cloth fitted", state_topic=st, entity_category="diagnostic",
+                  value_template="{{ 'ON' if value_json.cloth else 'OFF' }}", payload_on="ON", payload_off="OFF")
+        yield ent("binary_sensor", "new_map", "New map waiting", state_topic=st, entity_category="diagnostic",
+                  value_template="{{ 'ON' if value_json.new_map else 'OFF' }}", payload_on="ON", payload_off="OFF")
+        yield ent("binary_sensor", "dnd", "Do not disturb", state_topic=st, entity_category="diagnostic",
+                  value_template="{{ 'ON' if value_json.dnd_on else 'OFF' }}", payload_on="ON", payload_off="OFF")
+        yield ent("sensor", "dnd_window", "Do not disturb hours", state_topic=st, entity_category="diagnostic",
+                  value_template="{{ value_json.dnd_window }}")
+        yield ent("sensor", "firmware", "Firmware", state_topic=st, entity_category="diagnostic",
+                  value_template="{{ value_json.firmware }}")
+        yield ent("sensor", "timezone", "Robot time zone", state_topic=st, entity_category="diagnostic",
+                  value_template="{{ value_json.timezone }}")
+        yield ent("sensor", "language", "Voice language", state_topic=st, entity_category="diagnostic",
+                  value_template="{{ value_json.language }}")
+        yield ent("sensor", "serial", "Serial number", state_topic=st, entity_category="diagnostic",
+                  value_template="{{ value_json.serial }}")
         yield ent("sensor", "cleaning_time", "Cleaning time", state_topic=st, unit_of_measurement="min",
                   value_template="{{ value_json.cleaning_time_min }}", device_class="duration",
                   state_class="measurement")
@@ -161,6 +197,8 @@ class MqttBridge(threading.Thread):
                   command_topic=f"{P}/{rid}/set/water", options=list(spec.WATER_LEVELS))
         yield ent("select", "cleaning_mode", "Cleaning mode", state_topic=st, value_template="{{ value_json.mode }}",
                   command_topic=f"{P}/{rid}/set/mode", options=list(spec.MODES))
+        yield ent("select", "mop_route", "Mop route", state_topic=st, value_template="{{ value_json.mop_route }}",
+                  command_topic=f"{P}/{rid}/set/mop_route", options=list(spec.MOP_ROUTES))
         yield ent("switch", "repeat", "Repeat clean", state_topic=st, command_topic=f"{P}/{rid}/set/repeat",
                   value_template="{{ 'ON' if value_json.repeat else 'OFF' }}", payload_on="ON", payload_off="OFF")
         yield ent("number", "volume", "Volume", state_topic=st, value_template="{{ value_json.volume }}",
@@ -197,6 +235,11 @@ class MqttBridge(threading.Thread):
                 "activity": s["activity"], "battery": s["battery"], "fault": s["fault"],
                 "fan": FAN_NAMES.get(s["fan"]), "water": WATER_NAMES.get(s["water"]),
                 "mode": MODE_NAMES.get(s["mode"]), "sweep_type": SWEEP_NAMES.get(s["sweep_type"]),
+                "mop_route": ROUTE_NAMES.get(s["mop_route"]),
+                "box": spec.BOXES.get(s["box"]), "cloth": bool(s["cloth"]),
+                "new_map": bool(s["new_map"]), "firmware": s["firmware"], "serial": s["serial"],
+                "timezone": utc_label(s["timezone_s"]), "language": s["language"],
+                "dnd_on": bool(s["dnd"].get("enable")), "dnd_window": dnd_window(s["dnd"]),
                 "repeat": bool(s["repeat"]), "alarm": bool(s["alarm"]), "volume": s["volume"],
                 "cleaning_time_min": s["cleaning_time_min"], "cleaning_area_m2": s["cleaning_area_m2"],
                 "consumables": s["consumables"],

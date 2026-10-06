@@ -71,7 +71,7 @@ class CloudMaps:
                                              mac=mac, wifi_sn=sn)
         return self._fetchers[rid]
 
-    def mark_failing(self, rid: str) -> None:
+    def mark_failing(self) -> None:
         """Map downloads keep failing (a dead Xiaomi login, or Xiaomi's storage being down)."""
         if self.acct.health.get("state") not in ("failing", "paste_rejected"):
             self.acct.set_state("failing")
@@ -87,8 +87,13 @@ class CloudMaps:
         return res
 
     def refresh(self, rid: str, request_upload: bool = True) -> dict:
+        """One refresh. Never raises: an error is returned in the status (a crash here would end the scheduler)."""
         with self._busy[rid]:
-            return self._refresh(rid, request_upload)
+            try:
+                return self._refresh(rid, request_upload)
+            except Exception as ex:  # noqa: BLE001
+                self.status[rid].update(ok=False, error=f"{type(ex).__name__}: {ex}")
+                return self.status[rid]
 
     def _refresh(self, rid: str, request_upload: bool) -> dict:
         """Ask the robot for a fresh upload, fetch it and, if the map changed, rewrite its files."""
@@ -105,11 +110,10 @@ class CloudMaps:
             st.update(ok=False, error=f"{type(ex).__name__}: {ex}")
             return st
         st.update(outcomes=res.outcomes, ok=res.vector is not None, error=None)
-        if res.vector is not None:               # a map came down, so the login works
-            self.acct.set_state("ok")
         if res.vector is None:
             st["error"] = "no readable map: " + ", ".join(f"slot {s}: {o}" for s, o in res.outcomes.items())
             return st
+        self.acct.set_state("ok")                # a map came down, so the login works
         out = self.data / "maps" / rid
         meta_path = out / "meta.json"
         old = json.loads(meta_path.read_text()) if meta_path.exists() else {}
@@ -171,7 +175,7 @@ class Scheduler(threading.Thread):
                     else:
                         self.fails[rid] += 1
                         if self.fails[rid] > MAX_QUICK_RETRIES:     # about 8 minutes of failures in a row
-                            self.maps.mark_failing(rid)
+                            self.maps.mark_failing()
                         self.due[rid] = time.time() + (RETRY_S if self.fails[rid] <= MAX_QUICK_RETRIES else FAIL_BACKOFF_S)
             time.sleep(5)
 

@@ -11,20 +11,16 @@ arch:
 init: false
 startup: services
 boot: auto
-# The web page, in the HA sidebar (behind your HA login) and also directly on port 8099.
+# The web page is only in the HA sidebar (behind your HA login); no port is published on the network.
 ingress: true
 ingress_port: 8099
 panel_icon: mdi:robot-vacuum
 panel_title: Vacuums
-ports:
-  8099/tcp: 8099
-ports_description:
-  8099/tcp: Web page and API
 # The Xiaomi session, the robot list and the saved maps live in /homeassistant/vacuum_app (the HA config folder).
 map:
   - type: homeassistant_config
     read_only: false
-watchdog: http://[HOST]:[PORT:8099]/api/state
+watchdog: http://[HOST]:8099/api/state
 # Everything is set in HA: Settings > Add-ons > Vacuum App > Configuration. Nothing private is stored in this file.
 # robots: empty = the app finds the c103 robots on the Xiaomi account by itself (see DOCS.md).
 # xiaomi_*: the Xiaomi login, only needed to find the robots, and to renew the login (see DOCS.md).

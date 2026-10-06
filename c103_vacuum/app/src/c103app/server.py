@@ -78,10 +78,10 @@ def make_app() -> web.Application:
     async def robot_maps(request):
         rid = robot_or_404(request).robot.id
         try:
-            opts = await asyncio.get_running_loop().run_in_executor(None, commander.map_options, rid)
+            options = await asyncio.get_running_loop().run_in_executor(None, commander.map_options, rid)
         except Exception as ex:  # noqa: BLE001
             return web.json_response({"ok": False, "error": f"{type(ex).__name__}: {ex}"}, status=502)
-        return web.json_response({"ok": True, "maps": opts}, headers=NO_CACHE)
+        return web.json_response({"ok": True, "maps": options}, headers=NO_CACHE)
 
     async def map_file(request):
         robot_or_404(request)
@@ -97,18 +97,20 @@ def make_app() -> web.Application:
     commander = Commander(robots, DATA)
     commander.poke = lambda rid: live[rid].poke()
     commander.map_login = login_state
-    if maps is not None:                           # a rename shows up in the cloud map one upload later
-        def _after_rename(rid):
-            if rid not in maps.robots:
-                return
+    if maps is not None:
+        def _after_rename(rid):                    # a rename shows up in the cloud map one upload later
             for _ in range(5):
                 if maps.refresh(rid).get("changed"):
                     return
-        commander.on_room_renamed = lambda rid: threading.Thread(
-            target=_after_rename, args=(rid,), daemon=True, name="rename-refresh").start()
-    if maps is not None:                           # a map switch: pull the new map right away
-        commander.on_map_changed = lambda rid: rid in maps.robots and threading.Thread(
-            target=maps.refresh, args=(rid,), daemon=True, name="map-switch-refresh").start()
+
+        def _later(target):                        # run a map refresh in the background (robots without a map picture: nothing)
+            def hook(rid):
+                if rid in maps.robots:
+                    threading.Thread(target=target, args=(rid,), daemon=True, name="map-refresh").start()
+            return hook
+
+        commander.on_room_renamed = _later(_after_rename)
+        commander.on_map_changed = _later(maps.refresh)      # a map switch: pull the new map right away
     mqtt_cfg = config.load_mqtt(opts)              # optional: the MQTT settings (Configuration tab)
     if mqtt_cfg and robots:
         mqttbridge.MqttBridge(mqtt_cfg, names, live, commander).start()

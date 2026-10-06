@@ -60,7 +60,9 @@ class Account:
         saved = saved or {}
         self.region = saved.get("region")
         self._applied = saved.get("applied_paste")
-        self.cloud = XiaomiCloud(**saved["session"]) if saved.get("session") else None
+        s = saved.get("session") or {}
+        self.cloud = (XiaomiCloud(s["user_id"], s.get("ssecurity", ""), s.get("service_token", ""), s.get("pass_token"))
+                      if s.get("user_id") else None)
         self._apply_paste(opts)
 
     def set_state(self, state: str) -> None:
@@ -126,7 +128,7 @@ class Account:
 
     def _refresh_list(self, old: list[dict]) -> None:
         new = self._ask(old)
-        if new and [{k: v for k, v in d.items()} for d in new] != old:
+        if new and new != old:
             self._store(new)
             _log("the robots on the account changed (IP, token or a new robot); restart the app to apply it.")
 
@@ -134,20 +136,18 @@ class Account:
         self.dir.mkdir(parents=True, exist_ok=True)
         _write(self.dir / "robots.json", {"devices": devices})
 
+    def _regions(self) -> list[str]:
+        if self.region_opt != "auto":
+            return [self.region_opt]
+        return [self.region] if self.region else list(REGIONS)
+
     def _ask(self, old: list[dict] | None = None) -> list[dict] | None:
         """Ask Xiaomi for the account's c103 robots; None = could not ask, [] = there are none."""
         with self.lock:
-            for attempt in (1, 2):
-                regions = [self.region] if self.region else (
-                    [self.region_opt] if self.region_opt != "auto" else list(REGIONS))
-                with ThreadPoolExecutor(len(regions)) as pool:
-                    answers = list(pool.map(self._list_region, regions))
-                if any(a is not None for _, a in answers):
-                    break
-                if attempt == 1 and not self.renew():
-                    break
-            else:
-                answers = []
+            regions = self._regions()
+            answers = self._list_regions(regions)
+            if all(a is None for _, a in answers) and self.renew():      # an expired key looks like "no answer"
+                answers = self._list_regions(regions)
             for region, devs in answers:
                 robots = [d for d in devs or [] if d.get("model") == spec.MODEL]
                 if robots:
@@ -161,6 +161,10 @@ class Account:
             _log("could not read the robot list from Xiaomi: the login may have expired "
                  "(see the Documentation tab, 'Renewing the Xiaomi login').")
             return None
+
+    def _list_regions(self, regions: list[str]) -> list[tuple[str, list[dict] | None]]:
+        with ThreadPoolExecutor(len(regions)) as pool:
+            return list(pool.map(self._list_region, regions))
 
     def _list_region(self, region: str):
         try:

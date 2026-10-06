@@ -48,5 +48,3 @@ configuration:
       password:
         name: Password
         description: That user's password.
-network:
-  8099/tcp: Web page and API

@@ -65,7 +65,8 @@ If something is wrong, the **Log** tab says what and what to do.
 
 ## Licence and credits
 
+MIT licence, see [LICENSE](LICENSE). Copyright (c) 2026 Tusker86.
+
 The robot protocol, the map decoding and parts of the code come from
-[xiaomi-vac](https://github.com/letitbe-dull/xiaomi-vac) (MIT licence); its notice is in
-`c103_vacuum/app/third_party/LICENSE-xiaomi-vac.txt`. No licence has been chosen yet for the rest of
-this project's code.
+[xiaomi-vac](https://github.com/letitbe-dull/xiaomi-vac), Copyright (c) 2026 letitbe-dull, also MIT;
+its notice is in `c103_vacuum/app/third_party/LICENSE-xiaomi-vac.txt` and must be kept with any copy.

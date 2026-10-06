@@ -123,6 +123,12 @@ class CloudMaps:
                 and old.get("names_sig") == names_sig):
             st["changed"] = False
             return st
+        if (old.get("map_id") == res.vector["map_id"] and not res.vector.get("rooms")
+                and json.loads(old.get("names_sig") or "[]")):
+            # Xiaomi's second storage slot is an older copy without room names. When the first slot could
+            # not be read for a moment, the fallback must not wipe the names of the same map.
+            st["changed"] = False
+            return st
         vec = {k: v for k, v in res.vector.items() if k not in LIVE_KEYS}
         png, meta = maprender.render(vec)
         meta.update(imported_at=int(time.time()), source="cloud", content_hash=res.content_hash, names_sig=names_sig)

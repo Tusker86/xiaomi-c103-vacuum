@@ -23,13 +23,18 @@ from .robot import Robot
 
 LIVE_KEYS = ("path", "vacuum", "vacuum_room", "vacuum_room_name", "goto")  # live data: never stored with the map
 
-IDLE_EVERY_S = 300         # docked/idle: look for map changes every 5 minutes
+IDLE_EVERY_S = 3600        # docked/idle: pull the map at least once an hour (it only changes through this app)
 CLEANING_EVERY_S = 60      # while cleaning the map grows; refresh about once a minute
-AFTER_RUN_DELAYS_S = (20, 90)   # when a run ends, fetch the final map twice
+AFTER_RUN_DELAYS_S = (60,)      # when a run ends, fetch the final map once, a minute later
 UPLOAD_WAIT_S = 6
-RETRY_S = 90               # after a failure (often one slow download) try again soon ...
-FAIL_BACKOFF_S = 1800      # ... and only back off for long after this many failures in a row
-MAX_QUICK_RETRIES = 4
+RETRY_S = 90               # after a failure (often Xiaomi being slow or busy) try again soon, then ease off:
+MAX_RETRY_S = 1800         # 90 s, 3 min, 6 min, 12 min, 24 min, then every 30 min
+FAILING_AFTER = 6          # this many failures in a row (about 45 minutes) count as "login problem"
+
+
+def retry_after(fails: int) -> float:
+    """Seconds until the next try after `fails` failed refreshes in a row."""
+    return min(MAX_RETRY_S, RETRY_S * 2 ** max(fails - 1, 0))
 
 
 def _write_json(path: Path, obj) -> None:
@@ -176,14 +181,25 @@ class Scheduler(threading.Thread):
         self.after_run: dict[str, list[float]] = {rid: [] for rid in maps.robots}
         self.fails = {rid: 0 for rid in maps.robots}
         self.said: dict[str, str | None] = {rid: None for rid in maps.robots}
+        self.wake = threading.Event()             # a robot's status changed: look again now
+        for live in lives.values():
+            live.notify = self.wake.set
+
+    def _sleep_s(self) -> float:
+        """Until the next pull is due (never a busy loop, never longer than an hour)."""
+        nxt = min([*self.due.values(), *(t for ts in self.after_run.values() for t in ts)], default=time.time() + 3600)
+        return min(3600.0, max(0.05, nxt - time.time()))
 
     def run(self) -> None:
         while True:
+            self.wake.clear()                      # before looking: a change that comes later is not lost
             now = time.time()
             for rid, live in self.lives.items():
                 act = live.snapshot().get("activity", "unknown")
                 if self.prev[rid] in ("cleaning", "returning") and act in ("docked", "idle"):
                     self.after_run[rid] = [now + d for d in AFTER_RUN_DELAYS_S]
+                if act == "cleaning" and self.prev[rid] != "cleaning":
+                    self.due[rid] = min(self.due[rid], now + CLEANING_EVERY_S)   # the map grows: pull every minute
                 self.prev[rid] = act
                 due = self.due[rid]
                 pending = [t for t in self.after_run[rid] if t <= now]
@@ -200,10 +216,10 @@ class Scheduler(threading.Thread):
                         self.due[rid] = time.time() + every
                     else:
                         self.fails[rid] += 1
-                        if self.fails[rid] > MAX_QUICK_RETRIES:     # about 8 minutes of failures in a row
+                        if self.fails[rid] >= FAILING_AFTER:
                             self.maps.mark_failing()
-                        self.due[rid] = time.time() + (RETRY_S if self.fails[rid] <= MAX_QUICK_RETRIES else FAIL_BACKOFF_S)
-            time.sleep(5)
+                        self.due[rid] = time.time() + retry_after(self.fails[rid])
+            self.wake.wait(self._sleep_s())
 
 
 def _main(argv: list[str]) -> int:

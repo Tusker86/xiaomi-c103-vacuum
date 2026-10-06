@@ -27,6 +27,15 @@ NO_CACHE = {"Cache-Control": "no-cache"}
 MERGE_POLLS, MERGE_POLL_S = 12, 15        # after a merge: look at the map every 15 s, for 3 minutes
 
 
+def map_stamp(data: Path, rid: str) -> int:
+    """When this robot's saved map was last rewritten (meta.json is written last), 0 if there is none.
+    The page compares it with the one it knows, so it never has to ask for the map files to find out."""
+    try:
+        return int((data / "maps" / rid / "meta.json").stat().st_mtime)
+    except OSError:
+        return 0
+
+
 def make_app() -> web.Application:
     opts = config.load_options()
     acct = account.Account(STATE, opts)
@@ -58,9 +67,25 @@ def make_app() -> web.Application:
     def login_state(rid):
         return maps.session[rid]["state"] if maps and rid in maps.session else "off"
 
+    def all_state() -> dict:
+        return {rid: {**t.snapshot(), "map_login": login_state(rid), "map_at": map_stamp(DATA, rid)}
+                for rid, t in live.items()}
+
     async def state(_):
-        return web.json_response({rid: {**t.snapshot(), "map_login": login_state(rid)} for rid, t in live.items()},
-                                 headers=NO_CACHE)
+        return web.json_response(all_state(), headers=NO_CACHE)
+
+    async def live_view(request):
+        """The page's one request: every robot's state and, when it asks (?floor=&since=), that floor's trail."""
+        out = {"state": all_state(), "trail": None}
+        rid = request.query.get("floor")
+        if rid in live:
+            try:
+                since = int(request.query.get("since", 0))
+            except ValueError:
+                since = 0
+            run, pts = live[rid].trail_since(since)
+            out["trail"] = {"run": run, "since": since, "points": pts}
+        return web.json_response(out, headers=NO_CACHE)
 
     async def trail(request):
         t = robot_or_404(request)
@@ -180,6 +205,7 @@ def make_app() -> web.Application:
     app.add_routes([
         web.get("/", index),
         web.get("/api/state", state),
+        web.get("/api/live", live_view),
         web.get("/api/trail/{rid}", trail),
         web.get("/api/cloudmap", cloud_status),
         web.get("/api/maps/{rid}", robot_maps),

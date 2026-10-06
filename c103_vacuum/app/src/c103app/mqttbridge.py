@@ -26,7 +26,8 @@ from .robot import RobotError
 P = "c103app"
 DISCOVERY = "homeassistant"
 HEARTBEAT_S = 60
-MAPS_EVERY_S = 60      # how often the saved-map list is re-read for the "Active map" select
+MAPS_EVERY_S = 60      # how often the "Active map" select looks at the shared saved-map list (memory only) ...
+MAPS_ROBOT_EVERY_S = 600   # ... and the robot itself is only asked this often; a map switch refreshes the list at once
 STALE_S = 30           # a robot whose live data is older than this is reported unavailable
 
 INV = lambda d: {v: k for k, v in d.items()}  # noqa: E731
@@ -98,7 +99,7 @@ class MqttBridge(threading.Thread):
         self._maps_at = time.time()
         for rid in self.names:
             try:
-                new = self.cmd.map_options(rid, max_age=0)
+                new = self.cmd.map_options(rid, max_age=MAPS_ROBOT_EVERY_S)
             except Exception as ex:  # noqa: BLE001
                 print(f"mqtt: map list for {rid} failed: {type(ex).__name__}: {ex}", flush=True)
                 continue

@@ -52,6 +52,10 @@ class PathTail:
     timestamp: int | None
 
 
+# What changes while a robot works (6 properties = one request). Everything else is the slow set.
+FAST_PROPS = (spec.STATUS, spec.FAULT, spec.BATTERY, spec.ALARM, spec.CLEANING_TIME, spec.CLEANING_AREA)
+
+
 def _int(v):
     try:
         return int(v)
@@ -112,14 +116,16 @@ class Robot:
             return f"{type(ex).__name__}: {ex}"
 
     # --- telemetry ------------------------------------------------------------
-    def status(self) -> Status:
-        want = [spec.STATUS, spec.FAULT, spec.MODE, spec.SWEEP_TYPE, spec.BATTERY, spec.ALARM,
-                spec.VOLUME, spec.REPEAT, spec.FAN, spec.WATER, spec.CLEANING_TIME,
-                spec.CLEANING_AREA, spec.MOP_ROUTE, spec.BOX, spec.CLOTH,
-                spec.MAP_LIST_HAS_NEW, spec.FIRMWARE, spec.SERIAL,
-                *spec.DND.values()]
-        for c in spec.CONSUMABLES.values():
-            want += [c["life_pct"], c["hours_left"]]
+    def status(self, full: bool = True) -> Status:
+        """full=False reads only the few values that change during a run (one request); the
+        other fields of the result are then None/empty and the caller keeps what it had."""
+        want = list(FAST_PROPS)
+        if full:
+            want += [spec.MODE, spec.SWEEP_TYPE, spec.VOLUME, spec.REPEAT, spec.FAN, spec.WATER,
+                     spec.MOP_ROUTE, spec.BOX, spec.CLOTH, spec.MAP_LIST_HAS_NEW,
+                     spec.FIRMWARE, spec.SERIAL, *spec.DND.values()]
+            for c in spec.CONSUMABLES.values():
+                want += [c["life_pct"], c["hours_left"]]
         v = self._get(want)
         raw = _int(v.get(spec.STATUS))
         if raw is None:
@@ -135,8 +141,8 @@ class Robot:
             cleaning_time_min=_int(v.get(spec.CLEANING_TIME)),
             cleaning_area_m2=_int(v.get(spec.CLEANING_AREA)),
             consumables={name: {k: _int(v.get(p)) for k, p in c.items()}
-                         for name, c in spec.CONSUMABLES.items()},
-            dnd={k: _int(v.get(p)) for k, p in spec.DND.items()},
+                         for name, c in spec.CONSUMABLES.items()} if full else {},
+            dnd={k: _int(v.get(p)) for k, p in spec.DND.items()} if full else {},
             firmware=_text(v.get(spec.FIRMWARE)), serial=_text(v.get(spec.SERIAL)),
             mop_route=_int(v.get(spec.MOP_ROUTE)), box=_int(v.get(spec.BOX)), cloth=_int(v.get(spec.CLOTH)),
             new_map=None if v.get(spec.MAP_LIST_HAS_NEW) is None else bool(_int(v.get(spec.MAP_LIST_HAS_NEW))),

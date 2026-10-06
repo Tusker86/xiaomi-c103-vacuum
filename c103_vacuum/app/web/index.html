@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vacuums</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #ffffff; --ink: #1c2230; --muted: #667085; --line: #e3e6ec;
+    --accent: #2f6fed; --good: #1a9a5c; --warn: #c77700; --bad: #d23b3b; --trail: #e2483d;
+    --label: #1b2130; --halo: rgba(255,255,255,.85);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #11141b; --card: #1a1f2a; --ink: #e8ebf2; --muted: #98a2b3; --line: #2a3140;
+      --accent: #6c9bff; --good: #3ecf8e; --warn: #f0a63a; --bad: #ff6b6b; --trail: #ff6b5e;
+      --label: #f1f3f8; --halo: rgba(20,24,33,.85);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #11141b; --card: #1a1f2a; --ink: #e8ebf2; --muted: #98a2b3; --line: #2a3140;
+    --accent: #6c9bff; --good: #3ecf8e; --warn: #f0a63a; --bad: #ff6b6b; --trail: #ff6b5e;
+    --label: #f1f3f8; --halo: rgba(20,24,33,.85);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 16px; }
+  header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  h1 { font-size: 20px; margin: 0 8px 0 0; }
+  .tabs { display: flex; gap: 6px; }
+  .tab { border: 1px solid var(--line); background: var(--card); color: var(--ink); padding: 7px 14px;
+         border-radius: 999px; cursor: pointer; font: inherit; }
+  .tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .conn { margin-left: auto; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); display: inline-block; }
+  .dot.ok { background: var(--good); } .dot.bad { background: var(--bad); }
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 14px; }
+  @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } }
+  .grid > .card:first-child { align-self: start; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+  .stage { position: relative; line-height: 0; }
+  .stage img, .stage canvas { width: 100%; height: auto; display: block; }
+  .stage canvas { position: absolute; inset: 0; }
+  .empty { padding: 60px 10px; text-align: center; color: var(--muted); line-height: 1.4; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 0 0 8px; }
+  .state { display: flex; align-items: center; gap: 10px; font-size: 22px; font-weight: 600; }
+  .pill { width: 12px; height: 12px; border-radius: 50%; background: var(--muted); }
+  .pill.cleaning { background: var(--accent); animation: pulse 1.4s infinite; }
+  .pill.returning { background: var(--warn); animation: pulse 1.4s infinite; }
+  .pill.docked { background: var(--good); }
+  @keyframes pulse { 50% { opacity: .35; } }
+  .rows { margin-top: 10px; display: grid; gap: 6px; }
+  .row { display: flex; justify-content: space-between; gap: 10px; }
+  .row span:first-child { color: var(--muted); }
+  .bar { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; margin-top: 3px; }
+  .bar > i { display: block; height: 100%; background: var(--good); }
+  .bar.low > i { background: var(--warn); } .bar.crit > i { background: var(--bad); }
+  .cons { display: grid; gap: 10px; }
+  .cons .row button { margin-left: 8px; font-size: 12px; padding: 2px 8px; border-radius: 8px; }
+  .note { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .side { display: grid; gap: 14px; align-content: start; }
+  .err { color: var(--bad); font-size: 13px; margin-top: 8px; }
+  .stage canvas { touch-action: none; cursor: pointer; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; margin-bottom: 8px; }
+  .seg button { border: 0; background: transparent; color: var(--ink); padding: 6px 16px; font: inherit; cursor: pointer; }
+  .seg button.on { background: var(--accent); color: #fff; }
+  .hint { color: var(--muted); font-size: 13px; margin-bottom: 8px; min-height: 18px; }
+  .btns { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  .btn { border: 1px solid var(--line); background: var(--card); color: var(--ink); padding: 8px 14px; border-radius: 10px; font: inherit; cursor: pointer; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.warn { border-color: var(--bad); color: var(--bad); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .set { display: grid; grid-template-columns: 1fr auto; gap: 8px 10px; align-items: center; margin-top: 6px; }
+  .set label { color: var(--muted); }
+  .set select, .set input[type=range] { font: inherit; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 4px 6px; }
+  .toast { margin-top: 8px; font-size: 13px; min-height: 18px; }
+  .toast.ok { color: var(--good); } .toast.bad { color: var(--bad); }
+  .worn { color: var(--bad); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Vacuums</h1>
+    <div class="tabs" id="tabs" role="tablist"></div>
+    <div class="conn"><span class="dot" id="conn"></span><span id="connText">connecting…</span></div>
+  </header>
+  <div class="grid">
+    <div class="card"><div class="stage" id="stage"><div class="empty">Loading map…</div></div></div>
+    <div class="side">
+      <div class="card">
+        <h2 id="robotName">Robot</h2>
+        <div class="state"><span class="pill" id="pill"></span><span id="stateText">–</span></div>
+        <div class="rows">
+          <div><div class="row"><span>Battery</span><span id="batText">–</span></div>
+            <div class="bar" id="batBar"><i style="width:0"></i></div></div>
+          <div class="row"><span>This run</span><span id="runText">–</span></div>
+          <div class="row"><span>Fault code</span><span id="faultText">–</span></div>
+          <div class="row"><span>Updated</span><span id="updText">–</span></div>
+          <div class="row"><span>Map download</span><span id="loginText">–</span></div>
+        </div>
+        <div class="err" id="err"></div>
+      </div>
+      <div class="card" id="ctl">
+        <h2>Control</h2>
+        <div class="seg" id="mode"><button data-m="rooms" class="on">Rooms</button><button data-m="zone">Zone</button></div>
+        <div class="hint" id="hint"></div>
+        <div class="btns">
+          <button class="btn primary" id="goBtn" disabled>Clean selected</button>
+          <button class="btn" id="allBtn">All rooms</button>
+          <button class="btn" id="renBtn" title="Select one room, then rename it. The name is saved on the robot.">Rename</button>
+        </div>
+        <div class="btns">
+          <button class="btn warn" id="stopBtn">Stop</button>
+          <button class="btn" id="dockBtn">Dock</button>
+          <button class="btn" id="findBtn">Find</button>
+        </div>
+        <div class="set">
+          <label for="fan">Suction</label><select id="fan"><option>silent</option><option>standard</option><option>medium</option><option>turbo</option></select>
+          <label for="water">Water</label><select id="water"><option>low</option><option>mid</option><option>high</option></select>
+          <label for="cmode">Mode</label><select id="cmode"><option value="sweep">Sweep</option><option value="sweep_and_mop">Sweep + mop</option><option value="mop">Mop</option><option value="sweep_then_mop">Sweep then mop</option></select>
+          <label for="mapSel" id="mapLbl" hidden>Active map</label><select id="mapSel" hidden></select>
+          <label for="repeat">Repeat clean</label><input type="checkbox" id="repeat">
+          <label for="volume">Volume <b id="volText"></b></label><input type="range" id="volume" min="0" max="10" step="1">
+        </div>
+        <div class="toast" id="toast"></div>
+      </div>
+      <div class="card">
+        <h2>Consumables</h2>
+        <div class="cons" id="cons"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const ACT = {cleaning: "Cleaning", returning: "Returning to dock", docked: "Docked", idle: "Idle", paused: "Paused"};
+// Status-like values in the "fault" property: not errors. 2007 is undocumented (seen after a failed zone attempt).
+const FAULTS = {2105: "docked, full", 2103: "charging", 2110: "starting", 2108: "starting", 2007: "undocumented, not a confirmed fault"};
+const CONS = {main_brush: "Main brush", side_brush: "Side brush", filter: "Filter", mop: "Mop"};
+const S = { floor: null, state: {}, meta: {}, img: null, trail: {}, tick: 0, mode: 'rooms', sel: {}, zone: {}, busy: false };
+const MODE_NAMES = {0: 'sweep', 1: 'sweep_and_mop', 2: 'mop', 3: 'sweep_then_mop'};
+const FAN_NAMES = {0: 'silent', 1: 'standard', 2: 'medium', 3: 'turbo'}, WATER_NAMES = {0: 'low', 1: 'mid', 2: 'high'};
+const $ = id => document.getElementById(id);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+async function getJSON(url) { const r = await fetch(url, {cache: "no-store"}); if (!r.ok) throw new Error(url + " " + r.status); return r.json(); }
+
+function buildTabs(ids) {
+  const el = $("tabs"); el.innerHTML = "";
+  for (const id of ids) {
+    const b = document.createElement("button");
+    b.className = "tab"; b.role = "tab"; b.textContent = S.state[id].name; b.dataset.id = id;
+    b.onclick = () => selectFloor(id);
+    el.appendChild(b);
+  }
+}
+
+async function selectFloor(id) {
+  S.floor = id; loadMaps();
+  for (const b of document.querySelectorAll(".tab")) b.setAttribute("aria-selected", b.dataset.id === id);
+  try { localStorage.setItem("vac.floor", id); } catch (e) {}
+  const stage = $("stage"); stage.innerHTML = '<div class="empty">Loading map…</div>';
+  try {
+    S.meta[id] = S.meta[id] || await getJSON(`api/map/${id}/meta`);
+  } catch (e) {
+    stage.innerHTML = '<div class="empty">No map imported for this robot yet.</div>'; return;
+  }
+  const m = S.meta[id];
+  const img = new Image(); img.src = `api/map/${id}/base.png?v=${m.imported_at}`;
+  const canvas = document.createElement("canvas"); canvas.width = m.size_px[0]; canvas.height = m.size_px[1];
+  stage.innerHTML = ""; stage.append(img, canvas);
+  S.canvas = canvas; S.trail[id] = S.trail[id] || {run: null, pts: []};
+  S.trail[id].pts = []; S.trail[id].run = null;   // reload the line from the server
+  setupInteraction(); updateButtons(); render();
+}
+
+function render() {
+  const id = S.floor, m = S.meta[id], c = S.canvas; if (!m || !c) return;
+  const ctx = c.getContext("2d"), s = S.state[id] || {};
+  const ox = m.origin_px[0], oy = m.origin_px[1], k = m.px_per_m;
+  const P = (x, y) => [ox + x * k, oy - y * k];
+  ctx.clearRect(0, 0, c.width, c.height);
+
+  ctx.font = "600 22px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.lineJoin = "round"; ctx.lineWidth = 5; ctx.strokeStyle = css("--halo"); ctx.fillStyle = css("--label");
+  for (const r of m.rooms) if (r.name) { ctx.strokeText(r.name, r.label_px[0], r.label_px[1]); ctx.fillText(r.name, r.label_px[0], r.label_px[1]); }
+
+  const t = (S.trail[id] || {}).pts || [];
+  if (t.length > 1) {
+    ctx.beginPath(); t.forEach(([x, y], i) => { const [px, py] = P(x, y); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); });
+    ctx.lineWidth = 5; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = css("--trail"); ctx.globalAlpha = .85; ctx.stroke(); ctx.globalAlpha = 1;
+  }
+
+  const sel = S.sel[id] || (S.sel[id] = new Set());
+  for (const r of m.rooms) if (sel.has(r.id)) {       // selected rooms
+    ctx.beginPath(); for (const ring of r.rings_px) { ring.forEach(([px, py], i) => i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)); ctx.closePath(); }
+    ctx.fillStyle = css("--accent"); ctx.globalAlpha = .35; ctx.fill("evenodd"); ctx.globalAlpha = 1;
+    ctx.strokeStyle = css("--accent"); ctx.lineWidth = 4; ctx.stroke();
+  }
+  const z = S.zone[id];
+  if (z) {                                             // zone being drawn / chosen
+    const x = Math.min(z.ax, z.bx), y = Math.min(z.ay, z.by), w = Math.abs(z.bx - z.ax), h = Math.abs(z.by - z.ay);
+    ctx.fillStyle = css("--accent"); ctx.globalAlpha = .25; ctx.fillRect(x, y, w, h); ctx.globalAlpha = 1;
+    ctx.setLineDash([12, 8]); ctx.strokeStyle = css("--accent"); ctx.lineWidth = 4; ctx.strokeRect(x, y, w, h); ctx.setLineDash([]);
+  }
+
+  const [dx, dy] = P(m.charger.x, m.charger.y);       // dock
+  ctx.fillStyle = css("--good"); ctx.strokeStyle = "#fff"; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.roundRect(dx - 11, dy - 11, 22, 22, 5); ctx.fill(); ctx.stroke();
+
+  if (s.pose) {                                        // robot
+    const [rx, ry] = P(s.pose.x, s.pose.y), moving = s.activity === "cleaning" || s.activity === "returning";
+    if (moving) { ctx.fillStyle = css("--accent"); ctx.globalAlpha = .22; ctx.beginPath(); ctx.arc(rx, ry, 30, 0, 7); ctx.fill(); ctx.globalAlpha = 1; }
+    ctx.fillStyle = css("--accent"); ctx.strokeStyle = "#fff"; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(rx, ry, 16, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(rx, ry); ctx.lineTo(rx + 26 * Math.cos(s.pose.phi), ry - 26 * Math.sin(s.pose.phi));
+    ctx.strokeStyle = "#fff"; ctx.lineWidth = 4; ctx.stroke();
+  }
+}
+
+function fillPanel() {
+  const s = S.state[S.floor]; if (!s) return;
+  $("robotName").textContent = s.name;
+  $("stateText").textContent = ACT[s.activity] || s.activity || "–";
+  $("pill").className = "pill " + (s.activity || "");
+  $("batText").textContent = s.battery == null ? "–" : s.battery + "%";
+  const bb = $("batBar"); bb.className = "bar" + (s.battery < 15 ? " crit" : s.battery < 30 ? " low" : ""); bb.firstElementChild.style.width = (s.battery || 0) + "%";
+  $("runText").textContent = s.cleaning_time_min == null ? "–" : `${s.cleaning_time_min} min · ${s.cleaning_area_m2} m²`;
+  $("faultText").textContent = s.fault == null ? "–" : (FAULTS[s.fault] ? `${s.fault} (${FAULTS[s.fault]})` : s.fault === 0 ? "none" : `${s.fault} (unknown code)`);
+  $("updText").textContent = s.updated ? Math.max(0, Math.round(Date.now() / 1000 - s.updated)) + " s ago" : "–";
+  const LOGIN = {ok: "OK", unknown: "checking…", off: "off",
+                 failing: "Map download failing: the Xiaomi login may need renewing (add-on Documentation)",
+                 paste_rejected: "Pasted login was not accepted"};
+  const lt = $("loginText"); lt.textContent = LOGIN[s.map_login] || "–";
+  lt.style.color = (s.map_login === "failing" || s.map_login === "paste_rejected") ? css("--bad") : "";
+  $("err").textContent = s.error || "";
+  const cons = $("cons"); cons.innerHTML = "";
+  for (const [key, label] of Object.entries(CONS)) {
+    const c = (s.consumables || {})[key]; if (!c) continue;
+    const nodata = !c.life_pct && !c.hours_left;
+    const div = document.createElement("div");
+    div.innerHTML = `<div class="row"><span>${label}</span><span>${nodata ? '<span class="worn">Worn out · replace</span>' : c.life_pct + "% · " + c.hours_left + " h left"}<button class="btn" data-reset="${key}" ${S.busy || s.activity === "cleaning" ? "disabled" : ""} title="Zero this counter after replacing the part">Reset</button></span></div>
+      <div class="bar ${nodata || c.life_pct < 10 ? "crit" : c.life_pct < 25 ? "low" : ""}"><i style="width:${nodata ? 100 : c.life_pct || 0}%"></i></div>`;
+    cons.appendChild(div);
+  }
+}
+
+async function updateTrail() {
+  const id = S.floor; if (!id) return;
+  const tr = S.trail[id] = S.trail[id] || {run: null, pts: []};
+  const d = await getJSON(`api/trail/${id}?since=${tr.run === null ? 0 : tr.pts.length}`);
+  if (tr.run !== null && d.run !== tr.run) { tr.pts = []; return updateTrail.call(null, tr.run = null); }
+  tr.run = d.run; tr.pts.push(...d.points);
+}
+
+
+// ---------------- controls ----------------
+const toast = (msg, ok) => { const t = $("toast"); t.textContent = msg; t.className = "toast " + (ok ? "ok" : "bad"); clearTimeout(toast.h); toast.h = setTimeout(() => t.textContent = "", 6000); };
+
+async function send(action, body) {
+  if (S.busy) return; S.busy = true; updateButtons();
+  const headers = {"Content-Type": "application/json", "X-Requested-With": "vac"};
+  try { const tk = localStorage.getItem("vac.token"); if (tk) headers["X-Vac-Token"] = tk; } catch (e) {}
+  try {
+    const r = await fetch(`api/${S.floor}/${action}`, {method: "POST", headers, body: JSON.stringify(body || {})});
+    const j = await r.json().catch(() => ({ok: false, error: "HTTP " + r.status}));
+    if (r.status === 403) { const tk = prompt("Access token?"); if (tk) { try { localStorage.setItem("vac.token", tk); } catch (e) {} } }
+    if (j.ok === false) toast(j.error || "Failed", false);
+    else if (j.started === false) toast("Sent, but the robot did not start moving.", false);
+    else toast(action === "set" ? "Saved." : action === "reset-consumable" ? `Reset. Now ${j.life_pct == null ? "?" : j.life_pct}%.` : "Done.", true);
+    return j;
+  } catch (e) { toast("No connection to the app.", false); }
+  finally { S.busy = false; updateButtons(); }
+}
+
+function zoneMetres() {
+  const z = S.zone[S.floor], m = S.meta[S.floor]; if (!z || !m) return null;
+  const X = px => (px - m.origin_px[0]) / m.px_per_m, Y = py => (m.origin_px[1] - py) / m.px_per_m;
+  return {x0: X(z.ax), y0: Y(z.ay), x1: X(z.bx), y1: Y(z.by)};
+}
+
+function updateButtons() {
+  const s = S.state[S.floor] || {}, cleaning = s.activity === "cleaning";
+  const nSel = (S.sel[S.floor] || new Set()).size, zm = zoneMetres();
+  const zoneOk = zm && Math.abs(zm.x1 - zm.x0) >= 0.4 && Math.abs(zm.y1 - zm.y0) >= 0.4;
+  const go = $("goBtn");
+  go.textContent = S.mode === "rooms" ? (nSel ? `Clean ${nSel} room${nSel > 1 ? "s" : ""}` : "Clean selected") : "Clean zone";
+  go.disabled = S.busy || cleaning || (S.mode === "rooms" ? !nSel : !zoneOk);
+  $("allBtn").style.display = S.mode === "rooms" ? "" : "none";
+  $("allBtn").disabled = S.busy || cleaning;
+  $("renBtn").style.display = S.mode === "rooms" ? "" : "none";
+  $("renBtn").disabled = S.busy || cleaning || nSel !== 1;
+  for (const id of ["stopBtn", "dockBtn", "findBtn"]) $(id).disabled = S.busy;
+  $("findBtn").classList.toggle("on", !!s.alarm);          // lit while the robot is beeping
+  $("hint").textContent = S.mode === "rooms"
+    ? "Tap rooms on the map to select them."
+    : (zm ? `Zone ${Math.abs(zm.x1 - zm.x0).toFixed(1)} × ${Math.abs(zm.y1 - zm.y0).toFixed(1)} m` + (zoneOk ? "" : " (too small)") : "Drag on the map to draw a zone.");
+}
+
+function syncSettings() {
+  const s = S.state[S.floor]; if (!s) return;
+  const put = (id, v, prop = "value") => { const el = $(id); if (el && document.activeElement !== el && v != null) el[prop] = v; };
+  put("fan", FAN_NAMES[s.fan]); put("water", WATER_NAMES[s.water]); put("cmode", MODE_NAMES[s.mode]);
+  put("repeat", !!s.repeat, "checked"); put("volume", s.volume); $("volText").textContent = s.volume == null ? "" : s.volume;
+}
+
+function inRing(x, y, ring) { let c = false; for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) { const [xi, yi] = ring[i], [xj, yj] = ring[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; }
+
+function setupInteraction() {
+  const c = S.canvas, m = S.meta[S.floor]; if (!c || !m) return;
+  const at = e => { const r = c.getBoundingClientRect(); return [(e.clientX - r.left) * c.width / r.width, (e.clientY - r.top) * c.height / r.height]; };
+  let drag = null;
+  c.onpointerdown = e => { const [x, y] = at(e); drag = {x, y, moved: false}; c.setPointerCapture(e.pointerId); if (S.mode === "zone") S.zone[S.floor] = {ax: x, ay: y, bx: x, by: y}; };
+  c.onpointermove = e => { if (!drag) return; const [x, y] = at(e); if (Math.hypot(x - drag.x, y - drag.y) > 8) drag.moved = true; if (S.mode === "zone") { const z = S.zone[S.floor]; z.bx = x; z.by = y; render(); updateButtons(); } };
+  c.onpointerup = e => {
+    const d = drag; drag = null; if (!d) return;
+    if (S.mode === "rooms" && !d.moved) {
+      const hit = m.rooms.find(r => r.rings_px.some(ring => inRing(d.x, d.y, ring)));
+      if (hit) { const sel = S.sel[S.floor] || (S.sel[S.floor] = new Set()); sel.has(hit.id) ? sel.delete(hit.id) : sel.add(hit.id); }
+    }
+    render(); updateButtons();
+  };
+}
+
+$("mode").onclick = e => { const b = e.target.closest("button"); if (!b) return; S.mode = b.dataset.m; for (const x of $("mode").children) x.classList.toggle("on", x === b); render(); updateButtons(); };
+$("goBtn").onclick = async () => {
+  if (S.mode === "rooms") { const r = await send("clean-rooms", {rooms: [...S.sel[S.floor]]}); if (r && r.ok) S.sel[S.floor].clear(); }
+  else { const z = zoneMetres(); const r = await send("clean-zone", z); if (r && r.ok) S.zone[S.floor] = null; }
+  render(); updateButtons();
+};
+$("allBtn").onclick = () => { const ids = S.meta[S.floor].rooms.filter(r => r.name).map(r => r.id); if (confirm(`Clean all ${ids.length} rooms?`)) send("clean-rooms", {rooms: ids}); };
+$("renBtn").onclick = async () => {
+  const id = [...(S.sel[S.floor] || [])][0], room = S.meta[S.floor].rooms.find(r => r.id === id); if (!room) return;
+  const name = prompt(room.name ? `New name for "${room.name}" (max 24 characters). It is saved on the robot.`
+                               : "Name for this room (max 24 characters). It is saved on the robot.", room.name || "");
+  if (name === null || !name.trim() || name.trim() === room.name) return;
+  const r = await send("rename-room", {room: id, name: name.trim()});
+  if (r && r.ok) { S.sel[S.floor].clear(); toast("Saved on the robot. The map shows the new name within about a minute.", true); }
+  render(); updateButtons();
+};
+$("stopBtn").onclick = () => send("stop");
+$("dockBtn").onclick = () => send("dock");
+$("findBtn").onclick = () => send("locate");
+$("fan").onchange = e => send("set", {key: "fan", value: e.target.value});
+$("water").onchange = e => send("set", {key: "water", value: e.target.value});
+$("cmode").onchange = e => send("set", {key: "mode", value: e.target.value});
+$("repeat").onchange = e => send("set", {key: "repeat", value: e.target.checked});
+$("volume").onchange = e => send("set", {key: "volume", value: parseInt(e.target.value, 10)});
+$("cons").onclick = e => {
+  const b = e.target.closest("button[data-reset]"); if (!b) return;
+  const key = b.dataset.reset;
+  if (confirm(`Reset the ${CONS[key].toLowerCase()} counter to 100%?
+Do this only after you replaced the part.`))
+    send("reset-consumable", {name: key});
+};
+async function loadMaps() {
+  const id = S.floor; if (!id) return;
+  try {
+    const j = await getJSON(`api/maps/${id}`); if (!j.ok || id !== S.floor) return;
+    S.maps = j.maps; const sel = $("mapSel"), many = j.maps.length > 1;
+    sel.hidden = $("mapLbl").hidden = !many;
+    if (!many) return;
+    sel.innerHTML = j.maps.map(m => `<option value="${m.id}">${m.label}</option>`).join("");
+    const cur = j.maps.find(m => m.cur); if (cur && document.activeElement !== sel) sel.value = cur.id;
+  } catch (e) {}
+}
+$("mapSel").onchange = async e => {
+  const r = await send("set-map", {map_id: parseInt(e.target.value, 10)});
+  if (r && r.ok) toast("Map switched. Room buttons only work on the main map.", true);
+  loadMaps();
+};
+$("volume").oninput = e => { $("volText").textContent = e.target.value; };
+
+// The cloud module rewrites the map files now and then; reload the picture when meta.imported_at changes.
+async function checkMap() {
+  const id = S.floor, old = S.meta[id]; if (!id || !old) return;
+  const m = await getJSON(`api/map/${id}/meta`);
+  if (m.imported_at === old.imported_at) return;
+  S.meta[id] = m;
+  const img = $("stage").querySelector("img");
+  if (img) img.src = `api/map/${id}/base.png?v=${m.imported_at}`;
+  if (S.canvas) { S.canvas.width = m.size_px[0]; S.canvas.height = m.size_px[1]; }
+}
+
+async function tick() {
+  try {
+    S.state = await getJSON("api/state");
+    if (S.floor && (S.n = (S.n || 0) + 1) % 15 === 0) { try { await checkMap(); } catch (e) {} }
+    if (S.floor && S.n % 60 === 0) loadMaps();
+    if (!S.floor) {
+      const ids = Object.keys(S.state); buildTabs(ids);
+      let want = null; try { want = localStorage.getItem("vac.floor"); } catch (e) {}
+      await selectFloor(ids.includes(want) ? want : ids[0]);
+    }
+    await updateTrail(); fillPanel(); syncSettings(); updateButtons(); render();
+    $("conn").className = "dot ok"; $("connText").textContent = "live";
+  } catch (e) {
+    $("conn").className = "dot bad"; $("connText").textContent = "no connection";
+  }
+  setTimeout(tick, 1000);
+}
+tick();
+</script>
+</body>
+</html>

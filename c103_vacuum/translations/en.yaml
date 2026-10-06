@@ -1,0 +1,52 @@
+configuration:
+  xiaomi_user_id:
+    name: Xiaomi login, user id
+    description: >-
+      The browser cookie userId (a number of about 10 digits, not cUserId). Needed on the first setup so
+      the app can find your robots and download the map; later only the pass token needs renewing.
+  xiaomi_pass_token:
+    name: Xiaomi login, pass token
+    description: >-
+      The whole browser cookie passToken (starts with V1:, about 350 characters). Paste a new one when the
+      page shows "Map download: failing". How to get it: Documentation tab.
+  xiaomi_region:
+    name: Xiaomi region
+    description: Leave on auto. The app tries every region once and remembers yours.
+  robots:
+    name: Robots (optional)
+    description: >-
+      Leave empty and the app finds every c103 robot on your Xiaomi account by itself. Fill it in only
+      to use a robot that is not on that account, or to set the IP yourself.
+    fields:
+      id:
+        name: Id (optional)
+        description: A short label used in file and entity names. Leave empty; it is made from the name.
+      name:
+        name: Name
+        description: Shown on the page and in Home Assistant, for example Upstairs.
+      host:
+        name: IP address
+        description: The robot's address on your network, for example 192.168.1.20. Reserve it in your router.
+      token:
+        name: Token
+        description: The robot's 32-character token.
+  mqtt:
+    name: MQTT (Home Assistant link)
+    description: >-
+      The broker the app publishes the robots' entities to. For the Mosquitto add-on keep core-mosquitto and
+      1883. Leave the username empty to switch the link off.
+    fields:
+      host:
+        name: Broker address
+        description: core-mosquitto for the Mosquitto add-on.
+      port:
+        name: Port
+        description: Usually 1883.
+      username:
+        name: Username
+        description: A Home Assistant or MQTT user that may publish to the broker.
+      password:
+        name: Password
+        description: That user's password.
+network:
+  8099/tcp: Web page and API

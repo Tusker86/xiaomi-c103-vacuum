@@ -1,0 +1,54 @@
+name: Vacuum App (c103)
+version: "0.1.0"
+slug: c103_vacuum
+description: >-
+  Local control and live map for Xiaomi Mijia 3C Enhanced (xiaomi.vacuum.c103) robots.
+  Live position, room and zone cleaning over the LAN, the map kept fresh from the Xiaomi cloud,
+  a web page, and Home Assistant entities over MQTT.
+arch:
+  - aarch64
+  - amd64
+init: false
+startup: services
+boot: auto
+# The web page, in the HA sidebar (behind your HA login) and also directly on port 8099.
+ingress: true
+ingress_port: 8099
+panel_icon: mdi:robot-vacuum
+panel_title: Vacuums
+ports:
+  8099/tcp: 8099
+ports_description:
+  8099/tcp: Web page and API
+# The Xiaomi session, the robot list and the saved maps live in /homeassistant/vacuum_app (the HA config folder).
+map:
+  - type: homeassistant_config
+    read_only: false
+watchdog: http://[HOST]:[PORT:8099]/api/state
+# Everything is set in HA: Settings > Add-ons > Vacuum App > Configuration. Nothing private is stored in this file.
+# robots: empty = the app finds the c103 robots on the Xiaomi account by itself (see DOCS.md).
+# xiaomi_*: the Xiaomi login, only needed to find the robots, and to renew the login (see DOCS.md).
+options:
+  xiaomi_user_id: ""
+  xiaomi_pass_token: ""
+  xiaomi_region: auto
+  robots: []
+  mqtt:
+    host: core-mosquitto
+    port: 1883
+    username: ""
+    password: ""
+schema:
+  xiaomi_user_id: str?
+  xiaomi_pass_token: password?
+  xiaomi_region: list(auto|cn|de|us|ru|tw|sg|in|i2)?
+  robots:
+    - id: str?
+      name: str
+      host: str
+      token: password
+  mqtt:
+    host: str
+    port: port
+    username: str?
+    password: password?

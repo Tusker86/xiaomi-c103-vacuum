@@ -12,7 +12,7 @@ gives Home Assistant entities over MQTT.
   stop, dock, find (beep), suction, water, mode, repeat, volume.
 - **Live map:** the robot's position and trail update about once a second while it moves.
 - **Map picture** from the Xiaomi cloud (the robot uploads it, the app downloads and draws it).
-  Room names are stored on the robot itself; rename a room from the page.
+  Room names are stored on the robot itself; rename or merge rooms from the page.
 - **Consumables:** life left and hours left, with reset buttons.
 - **Home Assistant entities** over MQTT: a vacuum, battery, status, fault, cleaning time and area,
   consumables, settings, and a "Clean *room*" button per named room.
@@ -59,8 +59,9 @@ If something is wrong, the **Log** tab says what and what to do.
   (the region setting is `auto`).
 - Tested on `aarch64` (Raspberry Pi). The `amd64` build has not been tried.
 - Room cleans use the robot's active map; only one saved map per robot is shown on the page.
-- Building a new map (for example when a robot works on another floor) is not in the app yet:
-  do it in Mi Home. The same goes for splitting or merging rooms, virtual walls and no-go zones.
+- Rooms can be merged from the page (a Merge button; it goes through the Xiaomi cloud, and the merged
+  room is named again). Building a new map (for example when a robot works on another floor),
+  splitting rooms, virtual walls and no-go zones are not in the app yet: do them in Mi Home.
 - Schedules, do-not-disturb editing and clean history are not built; use Home Assistant automations.
 
 ## Licence and credits

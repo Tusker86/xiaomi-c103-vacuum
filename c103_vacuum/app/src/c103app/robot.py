@@ -43,8 +43,6 @@ class Status:
     new_map: bool | None = None
     firmware: str | None = None
     serial: str | None = None
-    timezone_s: int | None = None
-    language: str | None = None
 
 
 @dataclass
@@ -119,7 +117,7 @@ class Robot:
                 spec.VOLUME, spec.REPEAT, spec.FAN, spec.WATER, spec.CLEANING_TIME,
                 spec.CLEANING_AREA, spec.MOP_ROUTE, spec.BOX, spec.CLOTH,
                 spec.MAP_LIST_HAS_NEW, spec.FIRMWARE, spec.SERIAL,
-                spec.TIMEZONE, spec.LANGUAGE, *spec.DND.values()]
+                *spec.DND.values()]
         for c in spec.CONSUMABLES.values():
             want += [c["life_pct"], c["hours_left"]]
         v = self._get(want)
@@ -140,7 +138,6 @@ class Robot:
                          for name, c in spec.CONSUMABLES.items()},
             dnd={k: _int(v.get(p)) for k, p in spec.DND.items()},
             firmware=_text(v.get(spec.FIRMWARE)), serial=_text(v.get(spec.SERIAL)),
-            timezone_s=_int(v.get(spec.TIMEZONE)), language=_text(v.get(spec.LANGUAGE)),
             mop_route=_int(v.get(spec.MOP_ROUTE)), box=_int(v.get(spec.BOX)), cloth=_int(v.get(spec.CLOTH)),
             new_map=None if v.get(spec.MAP_LIST_HAS_NEW) is None else bool(_int(v.get(spec.MAP_LIST_HAS_NEW))),
         )

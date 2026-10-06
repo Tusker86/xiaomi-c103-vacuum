@@ -26,8 +26,6 @@ WATER = (7, 6)           # 0 low, 1 mid, 2 high
 BOX = (7, 3)             # read-only: 0 none, 1 dust box, 2 water box, 3 combined box
 CLOTH = (7, 4)           # read-only: 0 no mop cloth, 1 cloth fitted
 MOP_ROUTE = (7, 7)      # 0 S (parallel rows), 1 Y (cross-hatch); read/write per the published spec
-TIMEZONE = (7, 20)       # seconds from UTC, e.g. -28800 (the robot's clock is not on local time)
-LANGUAGE = (7, 21)       # voice language, e.g. "zh_CN"
 CLEANING_TIME = (7, 22)  # minutes in the current/last run
 CLEANING_AREA = (7, 23)  # m2 in the current/last run
 

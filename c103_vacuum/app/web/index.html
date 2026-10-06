@@ -101,9 +101,8 @@
           <div class="row"><span>Fitted</span><span id="fitText">–</span></div>
           <div class="row"><span>Do not disturb</span><span id="dndText">–</span></div>
           <div class="row" id="newMapRow" hidden><span>New map</span><span>waiting to be saved</span></div>
-          <div class="row"><span>Fault code</span><span id="faultText">–</span></div>
+          <div class="row"><span>Robot code</span><span id="faultText">–</span></div>
           <div class="row"><span>Firmware</span><span id="fwText">–</span></div>
-          <div class="row"><span>Time zone, voice</span><span id="tzText">–</span></div>
           <div class="row"><span>Serial</span><span id="snText">–</span></div>
           <div class="row"><span>Updated</span><span id="updText">–</span></div>
           <div class="row"><span>Map download</span><span id="loginText">–</span></div>
@@ -240,9 +239,6 @@ function fillPanel() {
   $("runText").textContent = s.cleaning_time_min == null ? "–" : `${s.cleaning_time_min} min · ${s.cleaning_area_m2} m²`;
   $("fitText").textContent = s.box == null ? "–" : `${BOX_NAMES[s.box] || "unknown box"}, ${s.cloth ? "cloth on" : "no cloth"}`;
   $("fwText").textContent = s.firmware || "–"; $("snText").textContent = s.serial || "–";
-  const tz = s.timezone_s == null ? null : "UTC" + (s.timezone_s < 0 ? "-" : "+") + Math.floor(Math.abs(s.timezone_s) / 3600) +
-    (Math.abs(s.timezone_s) % 3600 ? ":" + String(Math.floor(Math.abs(s.timezone_s) % 3600 / 60)).padStart(2, "0") : "");
-  $("tzText").textContent = [tz, s.language].filter(Boolean).join(", ") || "–";
   $("newMapRow").hidden = !s.new_map;
   const d = s.dnd || {}, hhmm = (h, m) => String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
   $("dndText").textContent = d.enable == null ? "–" :

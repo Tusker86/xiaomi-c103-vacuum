@@ -1,4 +1,4 @@
-# Xiaomi c103 vacuum app for Home Assistant
+# Xiaomi Robot Vacuum C103 for Home Assistant
 
 ![Robot Vacuum](c103_vacuum/logo.png)
 
@@ -33,7 +33,7 @@ gives Home Assistant entities over MQTT.
 
 1. In Home Assistant: **Settings > Add-ons > Add-on store > ⋮ > Repositories**, add
    `https://github.com/Tusker86/xiaomi-c103-vacuum`.
-2. Install **Vacuum App (c103)**.
+2. Install **Xiaomi Robot Vacuum C103**.
 3. Open its **Configuration** tab and fill in:
    - **Xiaomi login:** the browser cookies `userId` (about 10 digits) and `passToken` from a login at
      account.xiaomi.com. The **Documentation** tab explains how to get them, step by step.

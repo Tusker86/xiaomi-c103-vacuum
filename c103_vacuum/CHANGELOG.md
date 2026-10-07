@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.8 — 2026-10-07
+
+- Rename the Home Assistant app to Xiaomi Robot Vacuum C103.
+- Update the repository name and installation documentation to match.
+
 ## 0.1.7 — 2026-10-07
 
 - Use the same rendered robot image in the dashboard header, status panel, and live map marker.

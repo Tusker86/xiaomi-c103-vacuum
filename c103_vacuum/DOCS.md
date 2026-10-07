@@ -1,4 +1,4 @@
-# Vacuum App (c103)
+# Xiaomi Robot Vacuum C103
 
 Controls Xiaomi Mijia 3C Enhanced robots (`xiaomi.vacuum.c103`) over your home network: clean rooms or a
 zone, live position and trail, settings, and Home Assistant entities over MQTT. The web page is the

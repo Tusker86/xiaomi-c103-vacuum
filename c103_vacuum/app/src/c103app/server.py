@@ -65,6 +65,9 @@ def make_app() -> web.Application:
     async def index(_):
         return web.FileResponse(WEB / "index.html", headers=NO_CACHE)
 
+    async def robot_image(_):
+        return web.FileResponse(WEB / "robot.png", headers=NO_CACHE)
+
     def login_state(rid):
         return maps.session[rid]["state"] if maps and rid in maps.session else "off"
 
@@ -205,6 +208,7 @@ def make_app() -> web.Application:
     app = web.Application()
     app.add_routes([
         web.get("/", index),
+        web.get("/robot.png", robot_image),
         web.get("/api/state", state),
         web.get("/api/live", live_view),
         web.get("/api/trail/{rid}", trail),

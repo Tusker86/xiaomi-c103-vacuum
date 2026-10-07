@@ -260,7 +260,8 @@ h1 { font-size:25px; line-height:1.15; letter-spacing:-.6px; font-weight:800; }
 @media(prefers-color-scheme:dark) { :root:not([data-theme="light"]) { color-scheme:dark; --bg:#171b20; --card:#232930; --ink:#f4f5f6; --muted:#adb6bf; --line:#353d45; --accent:#ff9359; --label:#f4f5f6; --halo:#232930; } }
 #findBtn.on { background:var(--accent); color:#fff; }
 :root[data-theme="dark"] .tabs { background:var(--bg); }
-.brand-mark { background:var(--accent); color:#fff; }
+.brand-mark { background:transparent; color:#fff; }
+.brand-mark img { width:100%; height:100%; object-fit:contain; }
 .tabs { background:var(--card); border:1px solid var(--line); }
 .tab[aria-selected="true"] { background:var(--accent); color:#fff; box-shadow:none; }
 .icon-btn,.quick-actions .btn,#dockBtn,#findBtn { box-shadow:none; }
@@ -283,7 +284,7 @@ h1 { font-size:25px; line-height:1.15; letter-spacing:-.6px; font-weight:800; }
 <body>
 <div class="wrap">
   <header>
-    <div class="brand"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 14 16 5l11 9v13H5Z"/><path d="M12 27v-9h8v9"/></svg></span><h1>Robot Vacuum</h1></div>
+    <div class="brand"><span class="brand-mark" aria-hidden="true"><img src="robot.png" alt=""></span><h1>Robot Vacuum</h1></div>
     <div class="tabs" id="tabs" role="tablist"></div>
     <div class="conn"><span class="dot" id="conn"></span><span id="connText">connecting…</span></div>
   </header>
@@ -291,19 +292,7 @@ h1 { font-size:25px; line-height:1.15; letter-spacing:-.6px; font-weight:800; }
     <div class="card map-card"><div class="map-heading"><div><strong id="mapTitle">Where to?</strong><p id="mapInstruction">Tap a room to pick it.</p></div><div class="map-tools"><button class="icon-btn" id="themeBtn" title="Change colour theme" aria-label="Change colour theme">◐</button><button class="icon-btn" id="wallBtn" title="Wall display mode" aria-label="Wall display mode" aria-pressed="false">⛶</button></div></div><div class="stage" id="stage"><div class="empty">Loading your map…</div></div><div class="map-caption"><span>Cleaning path</span><span id="mapFreshness">Live position · saved floor map</span></div></div>
     <div class="side">
       <div class="card status-card">
-        <div class="status-top"><h2 id="robotName">Robot</h2><svg class="vac-art" viewBox="0 0 180 160" aria-hidden="true">
-<defs><linearGradient id="shell" x2=".2" y2="1"><stop stop-color="#fffef8"/><stop offset="1" stop-color="#e5e7d9"/></linearGradient></defs>
-<ellipse cx="90" cy="139" rx="55" ry="9" fill="#293c36" opacity=".08"/>
-<path d="M29 87c0-36 24-58 61-58s61 22 61 58v14c0 25-27 40-61 40s-61-15-61-40Z" fill="#b8c7b7"/>
-<ellipse cx="90" cy="84" rx="62" ry="55" fill="url(#shell)" stroke="#d4ddcd" stroke-width="2"/>
-<path d="M36 104c9 19 30 28 54 28s45-9 54-28" fill="none" stroke="#b7c6b4" stroke-width="3" stroke-linecap="round"/>
-<ellipse cx="90" cy="36" rx="19" ry="9" fill="#d1d9c8"/><ellipse cx="90" cy="31" rx="19" ry="9" fill="#fefdf4" stroke="#ced7c7" stroke-width="2"/>
-<rect x="48" y="59" width="84" height="49" rx="23" fill="#2b4339"/>
-<path d="M61 79q7-10 14 0m29 0q7-10 14 0" fill="none" stroke="#dcf3bf" stroke-width="5" stroke-linecap="round"/>
-<path d="M83 91q7 7 14 0" fill="none" stroke="#dcf3bf" stroke-width="3" stroke-linecap="round"/>
-<ellipse cx="59" cy="90" rx="5" ry="3" fill="#edac80" opacity=".6"/><ellipse cx="121" cy="90" rx="5" ry="3" fill="#edac80" opacity=".6"/>
-<rect x="83" y="116" width="14" height="4" rx="2" fill="#eb7645"/>
-</svg></div>
+        <div class="status-top"><h2 id="robotName">Robot</h2><img class="vac-art" src="robot.png" alt="" style="object-fit:contain"></div>
         <div class="state"><span class="pill" id="pill"></span><span id="stateText">–</span></div>
         <div class="rows">
           <div><div class="row"><span>Battery</span><span id="batText">–</span></div>
@@ -367,6 +356,9 @@ const ACT = {cleaning: "Cleaning", returning: "Returning to dock", docked: "Dock
 const FAULTS = {2105: "docked, full", 2103: "charging", 2110: "starting", 2108: "starting", 2007: "undocumented, not a confirmed fault"};
 const CONS = {main_brush: "Main brush", side_brush: "Side brush", filter: "Filter", mop: "Mop"};
 const S = { mapAt: {}, trailTicks: 0, fastUntil: 0, floor: null, state: {}, meta: {}, trail: {}, mode: 'rooms', sel: {}, zone: {}, busy: false };
+const robotImage = new Image();
+robotImage.onload = () => { if (S.floor) render(); };
+robotImage.src = 'robot.png';
 const MODE_NAMES = {0: 'sweep', 1: 'sweep_and_mop', 2: 'mop', 3: 'sweep_then_mop'}, ROUTE_NAMES = {0: 's', 1: 'y'};
 const BOX_NAMES = {0: "no box", 1: "dust box", 2: "water box", 3: "combined box"};
 const FAN_NAMES = {0: 'silent', 1: 'standard', 2: 'medium', 3: 'turbo'}, WATER_NAMES = {0: 'low', 1: 'mid', 2: 'high'};
@@ -489,14 +481,11 @@ function render() {
     if (moving) { ctx.fillStyle = css("--accent"); ctx.globalAlpha = .22; ctx.beginPath(); ctx.arc(rx, ry, 18, 0, 7); ctx.fill(); ctx.globalAlpha = 1; }
     // Front faces +X in robot coordinates; no protruding direction stalk.
     ctx.save(); ctx.translate(rx,ry); ctx.rotate(-s.pose.phi); ctx.scale(.6*Math.min(2,screenScale),.6*Math.min(2,screenScale));
-    ctx.shadowColor='rgba(25,40,50,.25)'; ctx.shadowBlur=7; ctx.shadowOffsetY=3;
-    ctx.fillStyle='#fafbfc'; ctx.strokeStyle='#a6b3bb'; ctx.lineWidth=1.8;
-    ctx.beginPath(); ctx.arc(0,0,19,0,Math.PI*2); ctx.fill(); ctx.stroke(); ctx.shadowBlur=0; ctx.shadowOffsetY=0;
-    ctx.strokeStyle='#8b9ca7'; ctx.lineWidth=2.5; ctx.beginPath(); ctx.arc(0,0,16,-Math.PI*.38,Math.PI*.38); ctx.stroke();
-    ctx.fillStyle='#e7ecef'; ctx.strokeStyle='#b4c0c7'; ctx.lineWidth=1;
-    ctx.beginPath(); ctx.arc(-4,0,6,0,Math.PI*2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle='#aebcc6'; ctx.beginPath(); ctx.arc(-4,0,3.5,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle=css('--accent'); ctx.beginPath(); ctx.roundRect(7,-3,5,6,2); ctx.fill();
+    if (robotImage.complete && robotImage.naturalWidth) {
+      // The rendered asset faces down; align its front with local +X.
+      ctx.rotate(-Math.PI / 2);
+      ctx.drawImage(robotImage,-24,-24,48,48);
+    }
     ctx.restore();
   }
 }

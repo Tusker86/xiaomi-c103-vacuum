@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.7 — 2026-10-07
+
+- Use the same rendered robot image in the dashboard header, status panel, and live map marker.
+- Remove the orange house icon and cartoon robot from the dashboard.
+- Preserve the small map marker size, live position and heading, and light/dark layouts.
+
 ## 0.1.6 — 2026-10-07
 
 - Add an original top-view robot vacuum app icon with a transparent background.

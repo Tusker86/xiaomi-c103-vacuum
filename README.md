@@ -63,6 +63,9 @@ If something is wrong, the **Log** tab says what and what to do.
   room is named again). Building a new map (for example when a robot works on another floor),
   splitting rooms, virtual walls and no-go zones are not in the app yet: do them in Mi Home.
 - Schedules, do-not-disturb editing and clean history are not built; use Home Assistant automations.
+- Found a problem, or tried another region, an `amd64` machine or a different setup? Please
+  [open an issue](https://github.com/Tusker86/xiaomi-c103-vacuum/issues) on GitHub and paste the add-on's
+  **Log** tab (check it first for anything private).
 
 ## Licence and credits
 

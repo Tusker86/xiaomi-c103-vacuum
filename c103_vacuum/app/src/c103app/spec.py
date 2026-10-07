@@ -51,9 +51,13 @@ CURRENT_PATH = (10, 5)
 
 # --- actions: (siid, aiid) ----------------------------------------------------
 START = (2, 1)
-STOP = (2, 2)            # c103 has no separate pause action; the integration uses stop
+STOP = (2, 2)            # ends the run (status 1); it does NOT pause. Pause is SET_ROOM_CLEAN with oper 2
 CHARGE = (3, 1)          # return to dock
 SET_ROOM_CLEAN = (7, 3)  # verified; piid 24 room ids (CSV *string*), 25 mode, 26 oper
+# oper (piid 26): 1 start/resume, 2 pause, 3 "fake pause". VERIFIED 2026-10-07 on the 2f robot with no room
+# ids: 2 and 3 both give status 2 (paused); 1 resumes the same run (trail and counters carry on).
+# Writing piid 26 as a property is rejected (-4002): it only works through this action.
+OPER_START, OPER_PAUSE = 1, 2
 GET_MAP_LIST = (10, 1)   # verified; out piid 4 = JSON list
 UPLOAD_BY_MAPID = (10, 2)
 UPLOAD_BY_MAPID_II = (10, 14)
@@ -74,6 +78,7 @@ START_ZONE_CLEAN = (9, 3)
 ACTIVITY = {0: "idle", 1: "idle", 2: "paused", 3: "returning", 4: "docked",
             5: "cleaning", 6: "cleaning", 7: "cleaning", 8: "idle", 10: "docked"}
 CLEANING_STATES = {5, 6, 7}
+PAUSED_STATE = 2
 
 FAN_SPEEDS = {"silent": 0, "standard": 1, "medium": 2, "turbo": 3}
 WATER_LEVELS = {"low": 0, "mid": 1, "high": 2}

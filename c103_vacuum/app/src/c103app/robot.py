@@ -197,8 +197,20 @@ class Robot:
     def start(self) -> str | None:
         return self._action_lenient(spec.START)
 
-    def stop(self) -> str | None:  # also serves as pause on this model
+    def stop(self) -> str | None:  # ends the run; pause() keeps it
         return self._action_lenient(spec.STOP)
+
+    def is_paused(self) -> bool:
+        return _int(self._get([spec.STATUS]).get(spec.STATUS)) == spec.PAUSED_STATE
+
+    def _oper(self, oper: int) -> str | None:
+        return self._action_lenient(spec.SET_ROOM_CLEAN, [(24, ""), (25, 0), (26, oper)])
+
+    def pause(self) -> str | None:
+        return self._oper(spec.OPER_PAUSE)
+
+    def resume(self) -> str | None:
+        return self._oper(spec.OPER_START)
 
     def dock(self) -> str | None:
         return self._action_lenient(spec.CHARGE)

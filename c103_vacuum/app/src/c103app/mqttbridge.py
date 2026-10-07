@@ -261,7 +261,7 @@ class MqttBridge(threading.Thread):
         action, body = None, {}
         try:
             if kind == "vacuum" and name == "cmd":
-                action = {"start": "start", "pause": "stop", "stop": "stop", "return_to_base": "dock",
+                action = {"start": "start", "pause": "pause", "stop": "stop", "return_to_base": "dock",
                           "locate": "locate"}.get(payload)
             elif kind == "vacuum" and name == "fan":
                 action, body = "set", {"key": "fan", "value": payload}

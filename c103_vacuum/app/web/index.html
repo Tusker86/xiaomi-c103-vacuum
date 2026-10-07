@@ -117,7 +117,7 @@
   .status-card .bar > i { background:var(--accent); }
   .status-card .bar.low > i { background:var(--warn); }
   .status-card .bar.crit > i { background:var(--bad); }
-  .quick-actions { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:22px 0 0; }
+  .quick-actions { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:22px 0 0; }
   .quick-actions .btn { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:12px 5px; min-height:76px; background:var(--bg); border:0; font-size:12px; }
   .quick-actions svg { width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
   .btn { min-height:48px; border-radius:14px; padding:12px 16px; }
@@ -300,6 +300,7 @@ h1 { font-size:25px; line-height:1.15; letter-spacing:-.6px; font-weight:800; }
           <div class="row"><span>This run</span><span id="runText">–</span></div>
         </div>
         <div class="quick-actions">
+          <button class="btn" id="pauseBtn"><svg id="pauseIco" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg><svg id="playIco" viewBox="0 0 24 24" style="display:none"><path d="M7 4.5v15l12.5-7.5z"/></svg><span id="pauseTxt">Pause</span></button>
           <button class="btn warn" id="stopBtn"><svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="3"/></svg>Stop</button>
           <button class="btn" id="dockBtn"><svg viewBox="0 0 24 24"><path d="m3 11 9-8 9 8M5 10v10h14V10M9 20v-7h6v7"/></svg>Go home</button>
           <button class="btn" id="findBtn"><svg viewBox="0 0 24 24"><path d="M10 18V5l10-2v13M10 8l10-2"/><ellipse cx="6.5" cy="18" rx="3.5" ry="2.5"/><ellipse cx="16.5" cy="16" rx="3.5" ry="2.5"/></svg>Find</button>
@@ -566,24 +567,27 @@ function zoneMetres() {
 }
 
 function updateButtons() {
-  const s = S.state[S.floor] || {}, cleaning = s.activity === "cleaning";
+  const s = S.state[S.floor] || {}, cleaning = s.activity === "cleaning", paused = s.activity === "paused";
   const nSel = (S.sel[S.floor] || new Set()).size, zm = zoneMetres();
   const zoneOk = zm && Math.abs(zm.x1 - zm.x0) >= 0.4 && Math.abs(zm.y1 - zm.y0) >= 0.4;
   $("mapTitle").textContent = S.mode === "rooms" ? "Where to?" : "Mark an area";
   $("mapInstruction").textContent = S.mode === "rooms" ? "Tap a room to pick it." : "Drag on the map to draw the area to clean.";
   const go = $("goBtn");
-  go.textContent = S.busy ? 'Sending…' : cleaning ? 'Cleaning in progress' : S.mode === "rooms" ? (nSel ? `Clean ${nSel} room${nSel > 1 ? "s" : ""}` : "Select rooms") : "Clean this area";
-  go.disabled = S.busy || cleaning || (S.mode === "rooms" ? !nSel : !zoneOk);
+  go.textContent = S.busy ? 'Sending…' : cleaning ? 'Cleaning in progress' : paused ? 'Paused' : S.mode === "rooms" ? (nSel ? `Clean ${nSel} room${nSel > 1 ? "s" : ""}` : "Select rooms") : "Clean this area";
+  go.disabled = S.busy || cleaning || paused || (S.mode === "rooms" ? !nSel : !zoneOk);
   // Keep the control panel steady when switching scope: the second button's space
   // remains reserved while area cleaning is selected.
   $("allBtn").style.visibility = S.mode === "rooms" ? "visible" : "hidden";
   $("allBtn").setAttribute("aria-hidden", S.mode === "rooms" ? "false" : "true");
-  $("allBtn").disabled = S.busy || cleaning || !S.meta[S.floor];
+  $("allBtn").disabled = S.busy || cleaning || paused || !S.meta[S.floor];
   $("renBtn").style.display = S.mode === "rooms" ? "" : "none";
   $("renBtn").disabled = S.busy || cleaning || nSel !== 1;
   $("mergeBtn").style.display = S.mode === "rooms" ? "" : "none";
   $("mergeBtn").disabled = S.busy || cleaning || S.merging || nSel < 2;
   for (const id of ["stopBtn", "dockBtn", "findBtn"]) $(id).disabled = S.busy;
+  $("pauseBtn").disabled = S.busy || !(cleaning || paused);
+  $("pauseTxt").textContent = paused ? "Resume" : "Pause";
+  $("pauseIco").style.display = paused ? "none" : ""; $("playIco").style.display = paused ? "" : "none";
   $("findBtn").classList.toggle("on", !!s.alarm);          // lit while the robot is beeping
   $("hint").textContent = S.mode === "rooms"
     ? "Tap rooms on the map to select them."
@@ -650,6 +654,7 @@ $("mergeBtn").onclick = async () => {
   }
   S.merging = false; updateButtons();
 };
+$("pauseBtn").onclick = () => send((S.state[S.floor] || {}).activity === "paused" ? "resume" : "pause");
 $("stopBtn").onclick = () => send("stop");
 $("dockBtn").onclick = () => send("dock");
 $("findBtn").onclick = () => send("locate");

@@ -1,5 +1,5 @@
 name: Xiaomi Robot Vacuum C103
-version: "0.1.8"
+version: "0.1.9"
 slug: c103_vacuum
 description: >-
   Local control and live map for Xiaomi Mijia 3C Enhanced (xiaomi.vacuum.c103) robots.

@@ -80,13 +80,23 @@ class Commander:
         try:
             if action in ("start", "clean-rooms", "clean-zone") and robot.is_cleaning():
                 raise Refused("the robot is already cleaning", 409)
+            if action in ("clean-rooms", "clean-zone") and robot.is_paused():
+                raise Refused("the robot is paused: resume it or stop it first", 409)
+            if action == "pause":                       # keeps the run; stop ends it
+                if not robot.is_cleaning():
+                    raise Refused("the robot is not cleaning", 409)
+                return {"ack_error": robot.pause()}
+            if action == "resume" or (action == "start" and robot.is_paused()):
+                if not robot.is_paused():
+                    raise Refused("the robot is not paused", 409)
+                return {"ack_error": robot.resume()}
             if action == "start":                       # full clean, the robot's own plan
                 return {"ack_error": robot.start()}
             if action == "clean-rooms":
                 return self._clean_rooms(rid, body)
             if action == "clean-zone":
                 return self._clean_zone(rid, body)
-            if action == "stop":                        # also pause: the c103 has no pause state
+            if action == "stop":                        # ends the run
                 return {"ack_error": robot.stop()}
             if action == "dock":
                 return {"ack_error": robot.dock()}

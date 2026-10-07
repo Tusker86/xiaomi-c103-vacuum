@@ -11,7 +11,7 @@ gives Home Assistant entities over MQTT.
 ## What it does
 
 - **Local control** over your network (no cloud round trip): clean rooms, clean a zone, full clean,
-  stop, dock, find (beep), suction, water, mode, repeat, volume.
+  pause, resume, stop, dock, find (beep), suction, water, mode, repeat, volume.
 - **Live map:** the robot's position and trail update about once a second while it moves.
 - **Map picture** from the Xiaomi cloud (the robot uploads it, the app downloads and draws it).
   Room names are stored on the robot itself; rename or merge rooms from the page.

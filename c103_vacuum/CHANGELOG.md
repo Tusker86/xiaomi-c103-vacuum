@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.9 — 2026-10-07
+
+- Add Pause and Resume. Stop still ends the run; Pause keeps it and Resume carries on.
+- Home Assistant's pause now pauses instead of stopping.
+
 ## 0.1.8 — 2026-10-07
 
 - Rename the Home Assistant app to Xiaomi Robot Vacuum C103.

@@ -1,6 +1,7 @@
 name: Xiaomi Robot Vacuum C103
-version: "0.1.9"
+version: "0.1.10"
 slug: c103_vacuum
+url: https://github.com/Tusker86/xiaomi-c103-vacuum
 description: >-
   Local control and live map for Xiaomi Mijia 3C Enhanced (xiaomi.vacuum.c103) robots.
   Live position, room and zone cleaning over the LAN, the map kept fresh from the Xiaomi cloud,

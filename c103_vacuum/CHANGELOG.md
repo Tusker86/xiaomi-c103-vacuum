@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.10 — 2026-10-07
+
+- The app page in Home Assistant now links to the GitHub page for more details.
+
 ## 0.1.9 — 2026-10-07
 
 - Add Pause and Resume. Stop still ends the run; Pause keeps it and Resume carries on.

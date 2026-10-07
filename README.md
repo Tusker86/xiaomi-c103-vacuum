@@ -1,5 +1,7 @@
 # Xiaomi c103 vacuum app for Home Assistant
 
+![Robot Vacuum](c103_vacuum/logo.png)
+
 A Home Assistant add-on for the **Xiaomi Mijia 3C Enhanced** robot vacuum (`xiaomi.vacuum.c103`).
 It controls the robots over your home network, shows the live position and trail on the map, and
 gives Home Assistant entities over MQTT.
@@ -70,6 +72,9 @@ If something is wrong, the **Log** tab says what and what to do.
 ## Licence and credits
 
 MIT licence, see [LICENSE](LICENSE). Copyright (c) 2026 Tusker86.
+
+The app icon and information banner use an original rendered robot vacuum image.
+They are included with the add-on as `icon.png` and `logo.png`.
 
 The robot protocol, the map decoding and parts of the code come from
 [xiaomi-vac](https://github.com/letitbe-dull/xiaomi-vac), Copyright (c) 2026 letitbe-dull, also MIT;

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import threading
 import time
@@ -217,4 +218,6 @@ def make_app() -> web.Application:
 
 
 if __name__ == "__main__":
+    # The map parser warns about pixel types it does not know on every decode; the maps draw fine, so keep it out of the log.
+    logging.getLogger("vacuum_map_parser_ijai").setLevel(logging.ERROR)
     web.run_app(make_app(), host="0.0.0.0", port=int(os.environ.get("C103_PORT", "8099")))
